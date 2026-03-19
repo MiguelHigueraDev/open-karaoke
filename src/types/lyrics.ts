@@ -16,6 +16,8 @@ export interface SyncedLine {
   words: SyncedWord[];
 }
 
+export type SyncMode = 'line' | 'word';
+
 export interface Metadata {
   title: string;
   artist: string;

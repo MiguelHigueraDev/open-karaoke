@@ -1,7 +1,14 @@
-import type { SyncedLyrics } from '../types/lyrics';
+import type { SyncedLyrics, SyncMode } from '../types/lyrics';
 import { Step, STEP_ORDER } from '../types/steps';
 
-export function canAdvance(step: Step, lyrics: SyncedLyrics): boolean {
+function getSteps(syncMode: SyncMode): Step[] {
+  if (syncMode === 'line') {
+    return STEP_ORDER.filter((s) => s !== Step.WordSync);
+  }
+  return STEP_ORDER;
+}
+
+export function canAdvance(step: Step, lyrics: SyncedLyrics, syncMode: SyncMode): boolean {
   switch (step) {
     case Step.Upload:
       return lyrics.lines.length > 0 && lyrics.metadata.duration > 0;
@@ -19,12 +26,16 @@ export function canAdvance(step: Step, lyrics: SyncedLyrics): boolean {
   }
 }
 
-export function nextStep(current: Step): Step | null {
-  const idx = STEP_ORDER.indexOf(current);
-  return idx < STEP_ORDER.length - 1 ? STEP_ORDER[idx + 1] : null;
+export function nextStep(current: Step, syncMode: SyncMode): Step | null {
+  const steps = getSteps(syncMode);
+  const idx = steps.indexOf(current);
+  return idx < steps.length - 1 ? steps[idx + 1] : null;
 }
 
-export function prevStep(current: Step): Step | null {
-  const idx = STEP_ORDER.indexOf(current);
-  return idx > 0 ? STEP_ORDER[idx - 1] : null;
+export function prevStep(current: Step, syncMode: SyncMode): Step | null {
+  const steps = getSteps(syncMode);
+  const idx = steps.indexOf(current);
+  return idx > 0 ? steps[idx - 1] : null;
 }
+
+export { getSteps };

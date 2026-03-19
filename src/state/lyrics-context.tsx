@@ -5,7 +5,7 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { SyncedLyrics } from '../types/lyrics';
+import type { SyncedLyrics, SyncMode } from '../types/lyrics';
 import { Step } from '../types/steps';
 import { parseLyrics } from '../lib/parse-lyrics';
 
@@ -13,6 +13,7 @@ import { parseLyrics } from '../lib/parse-lyrics';
 
 export interface AppState {
   step: Step;
+  syncMode: SyncMode;
   audioFile: File | null;
   audioUrl: string | null;
   rawLyrics: string;
@@ -26,6 +27,7 @@ const INITIAL_LYRICS: SyncedLyrics = {
 
 const INITIAL_STATE: AppState = {
   step: Step.Upload,
+  syncMode: 'word',
   audioFile: null,
   audioUrl: null,
   rawLyrics: '',
@@ -38,6 +40,7 @@ export type Action =
   | { type: 'SET_AUDIO'; file: File; url: string; duration: number }
   | { type: 'SET_RAW_LYRICS'; text: string }
   | { type: 'SET_METADATA'; title: string; artist: string }
+  | { type: 'SET_SYNC_MODE'; mode: SyncMode }
   | { type: 'GO_TO_STEP'; step: Step }
   | { type: 'SET_LINE_TIME'; lineIndex: number; time: number }
   | { type: 'UNDO_LINE_TIME' }
@@ -87,6 +90,9 @@ function reducer(state: AppState, action: Action): AppState {
           },
         },
       };
+
+    case 'SET_SYNC_MODE':
+      return { ...state, syncMode: action.mode };
 
     case 'GO_TO_STEP':
       return { ...state, step: action.step };

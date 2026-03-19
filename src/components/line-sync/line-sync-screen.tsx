@@ -5,7 +5,7 @@ import { useAppState, useDispatch } from '../../state/lyrics-context';
 import { formatTime } from '../../lib/time-utils';
 
 export function LineSyncScreen() {
-  const { lyrics } = useAppState();
+  const { lyrics, syncMode } = useAppState();
   const dispatch = useDispatch();
   const getCurrentTimeRef = useRef<() => number>(() => 0);
   const isPlayingRef = useRef(false);
@@ -65,7 +65,7 @@ export function LineSyncScreen() {
   };
 
   return (
-    <StepShell nextLabel="Start Word Sync" onNext={handleNext}>
+    <StepShell nextLabel={syncMode === 'word' ? 'Start Word Sync' : 'Preview'} onNext={handleNext}>
       <div className="flex flex-col gap-4">
         <WaveformPlayer
           getCurrentTimeRef={getCurrentTimeRef}
@@ -147,7 +147,8 @@ export function LineSyncScreen() {
 
         {allSynced && (
           <div className="flex items-center justify-center gap-3 p-4 bg-success/[0.08] border border-success/20 rounded-lg text-success text-sm font-semibold">
-            All lines synced! Click Next to sync words.
+            All lines synced! Click Next to{' '}
+            {syncMode === 'word' ? 'sync words' : 'preview'}.
           </div>
         )}
       </div>

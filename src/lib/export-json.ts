@@ -1,8 +1,8 @@
-import type { SyncedLyrics } from '../types/lyrics';
+import type { SyncedLyrics, SyncMode } from '../types/lyrics';
 
-export function exportToJson(lyrics: SyncedLyrics): string {
+export function exportToJson(lyrics: SyncedLyrics, syncMode: SyncMode): string {
   const output = {
-    metadata: lyrics.metadata,
+    metadata: { ...lyrics.metadata, syncMode },
     lines: lyrics.lines.map((line) => ({
       id: line.id,
       index: line.index,

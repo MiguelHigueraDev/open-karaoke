@@ -4,9 +4,9 @@ import { useAppState } from '../../state/lyrics-context';
 import { exportToJson } from '../../lib/export-json';
 
 export function ExportScreen() {
-  const { lyrics } = useAppState();
+  const { lyrics, syncMode } = useAppState();
   const [copied, setCopied] = useState(false);
-  const json = exportToJson(lyrics);
+  const json = exportToJson(lyrics, syncMode);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(json);

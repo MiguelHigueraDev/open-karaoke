@@ -6,7 +6,7 @@ import { KaraokeRenderer } from './karaoke-renderer';
 import { formatTime } from '../../lib/time-utils';
 
 export function PreviewScreen() {
-  const { lyrics, audioUrl } = useAppState();
+  const { lyrics, syncMode, audioUrl } = useAppState();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const audio = useAudio({
@@ -50,6 +50,7 @@ export function PreviewScreen() {
 
         <KaraokeRenderer
           lyrics={lyrics}
+          syncMode={syncMode}
           getCurrentTime={audio.getCurrentTime}
           isPlaying={audio.isPlaying}
         />

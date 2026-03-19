@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import type { SyncedLyrics } from '../../types/lyrics';
+import type { SyncedLyrics, SyncMode } from '../../types/lyrics';
 import { useAnimationFrame } from '../../hooks/use-animation-frame';
 
 interface Props {
   lyrics: SyncedLyrics;
+  syncMode: SyncMode;
   getCurrentTime: () => number;
   isPlaying: boolean;
 }
 
-export function KaraokeRenderer({ lyrics, getCurrentTime, isPlaying }: Props) {
+export function KaraokeRenderer({
+  lyrics,
+  syncMode,
+  getCurrentTime,
+  isPlaying,
+}: Props) {
   const [currentTime, setCurrentTime] = useState(0);
 
   useAnimationFrame(() => {
@@ -39,46 +45,63 @@ export function KaraokeRenderer({ lyrics, getCurrentTime, isPlaying }: Props) {
           currentTime >= line.startTime &&
           currentTime < line.endTime;
 
+        const isPast =
+          line.endTime !== null && currentTime >= line.endTime;
+
         return (
           <div
             key={line.id}
             className={`text-center transition-all duration-300 ${
               isActive
-                ? 'text-[28px] font-bold text-text-dim'
-                : 'text-xl text-text-dim'
+                ? 'text-[28px] font-bold'
+                : 'text-xl'
+            } ${
+              syncMode === 'line'
+                ? isActive
+                  ? 'text-accent-glow'
+                  : isPast
+                    ? 'text-text-muted'
+                    : 'text-text-dim'
+                : 'text-text-dim'
             }`}
           >
             {line.isInstrumental ? (
-              <span
-                className={`italic ${isActive ? 'karaoke-word' : ''}`}
-                style={
-                  isActive
-                    ? ({
-                        '--progress': `${(() => {
-                          const s = line.startTime ?? 0;
-                          const e = line.endTime ?? s;
-                          const d = e - s;
-                          if (currentTime >= e) return 100;
-                          if (currentTime > s && d > 0)
-                            return ((currentTime - s) / d) * 100;
-                          return 0;
-                        })()}%`,
-                      } as React.CSSProperties)
-                    : undefined
-                }
-              >
-                ♪ Instrumental ♪
-              </span>
+              syncMode === 'line' ? (
+                <span className="italic">♪ Instrumental ♪</span>
+              ) : (
+                <span
+                  className={`italic ${isActive ? 'karaoke-word' : ''}`}
+                  style={
+                    isActive
+                      ? ({
+                          '--progress': `${(() => {
+                            const s = line.startTime ?? 0;
+                            const e = line.endTime ?? s;
+                            const d = e - s;
+                            if (currentTime >= e) return 100;
+                            if (currentTime > s && d > 0)
+                              return ((currentTime - s) / d) * 100;
+                            return 0;
+                          })()}%`,
+                        } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  ♪ Instrumental ♪
+                </span>
+              )
+            ) : syncMode === 'line' ? (
+              <span>{line.words.map((w) => w.text).join(' ')}</span>
             ) : (
               line.words.map((word) => {
                 const wordStart = word.startTime ?? 0;
                 const wordEnd = word.endTime ?? wordStart;
                 const wordDuration = wordEnd - wordStart;
 
-                let progress = 0;
-                if (currentTime >= wordEnd) progress = 1;
+                let wordProgress = 0;
+                if (currentTime >= wordEnd) wordProgress = 1;
                 else if (currentTime > wordStart && wordDuration > 0)
-                  progress = (currentTime - wordStart) / wordDuration;
+                  wordProgress = (currentTime - wordStart) / wordDuration;
 
                 return (
                   <span
@@ -86,7 +109,7 @@ export function KaraokeRenderer({ lyrics, getCurrentTime, isPlaying }: Props) {
                     className="karaoke-word"
                     style={
                       {
-                        '--progress': `${progress * 100}%`,
+                        '--progress': `${wordProgress * 100}%`,
                       } as React.CSSProperties
                     }
                   >

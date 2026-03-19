@@ -12,9 +12,9 @@ interface Props {
 export function StepShell({ children, nextLabel, onNext }: Props) {
   const state = useAppState();
   const dispatch = useDispatch();
-  const prev = prevStep(state.step);
-  const next = nextStep(state.step);
-  const canGoNext = next && canAdvance(state.step, state.lyrics);
+  const prev = prevStep(state.step, state.syncMode);
+  const next = nextStep(state.step, state.syncMode);
+  const canGoNext = next && canAdvance(state.step, state.lyrics, state.syncMode);
 
   return (
     <div className="flex flex-col h-screen max-w-[900px] mx-auto px-6">

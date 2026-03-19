@@ -1,15 +1,19 @@
-import { STEP_ORDER, STEP_LABELS, type Step } from '../../types/steps';
+import { STEP_LABELS, type Step } from '../../types/steps';
+import { getSteps } from '../../state/step-machine';
+import { useAppState } from '../../state/lyrics-context';
 
 interface Props {
   currentStep: Step;
 }
 
 export function StepIndicator({ currentStep }: Props) {
-  const currentIdx = STEP_ORDER.indexOf(currentStep);
+  const { syncMode } = useAppState();
+  const steps = getSteps(syncMode);
+  const currentIdx = steps.indexOf(currentStep);
 
   return (
     <div className="flex items-center gap-2">
-      {STEP_ORDER.map((step, i) => {
+      {steps.map((step, i) => {
         const isCompleted = i < currentIdx;
         const isActive = i === currentIdx;
 
