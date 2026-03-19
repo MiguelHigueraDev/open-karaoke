@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SyncedLyrics, SyncMode } from '../../types/lyrics';
 import { useAnimationFrame } from '../../hooks/use-animation-frame';
+import { InstrumentalDots } from './instrumental-dots';
 
 interface Props {
   lyrics: SyncedLyrics;
@@ -91,7 +92,7 @@ export function KaraokeRenderer({
         return (
           <div
             key={line.id}
-            className={`text-center transition-all duration-300 ${
+            className={`text-center transition-[font-size,color] duration-300 ${
               isActive
                 ? fullscreen
                   ? 'text-[42px] font-bold'
@@ -110,30 +111,19 @@ export function KaraokeRenderer({
             }`}
           >
             {line.isInstrumental ? (
-              syncMode === 'line' ? (
-                <span className="italic">♪ Instrumental ♪</span>
-              ) : (
-                <span
-                  className={`italic ${isActive ? 'karaoke-word' : ''}`}
-                  style={
-                    isActive
-                      ? ({
-                          '--progress': `${(() => {
-                            const s = line.startTime ?? 0;
-                            const e = line.endTime ?? s;
-                            const d = e - s;
-                            if (currentTime >= e) return 100;
-                            if (currentTime > s && d > 0)
-                              return ((currentTime - s) / d) * 100;
-                            return 0;
-                          })()}%`,
-                        } as React.CSSProperties)
-                      : undefined
-                  }
-                >
-                  ♪ Instrumental ♪
-                </span>
-              )
+              <InstrumentalDots
+                isActive={isActive}
+                isPast={isPast}
+                progress={(() => {
+                  const s = line.startTime ?? 0;
+                  const e = line.endTime ?? s;
+                  const d = e - s;
+                  if (d <= 0 || currentTime >= e) return 1;
+                  if (currentTime <= s) return 0;
+                  return (currentTime - s) / d;
+                })()}
+                size={fullscreen ? 'large' : 'normal'}
+              />
             ) : syncMode === 'line' ? (
               <span>{line.words.map((w) => w.text).join(' ')}</span>
             ) : (
@@ -147,17 +137,26 @@ export function KaraokeRenderer({
                 else if (currentTime > wordStart && wordDuration > 0)
                   wordProgress = (currentTime - wordStart) / wordDuration;
 
+                // Settle: word starts slightly offset up, eases to 0 as it's sung
+                const maxOffset = fullscreen ? 4 : 3;
+                // Cubic ease-out for a gentle, smooth settle
+                const t = Math.min(wordProgress, 1);
+                const eased = 1 - (1 - t) ** 3;
+                const wordOffsetY = wordProgress >= 1 ? 0 : maxOffset * (1 - eased);
+
                 return (
-                  <span
-                    key={word.id}
-                    className="karaoke-word"
-                    style={
-                      {
-                        '--progress': `${wordProgress * 100}%`,
-                      } as React.CSSProperties
-                    }
-                  >
-                    {word.text}{' '}
+                  <span key={word.id} className="inline-block mr-[0.3em]">
+                    <span
+                      className="karaoke-word inline-block"
+                      style={
+                        {
+                          '--progress': `${wordProgress * 100}%`,
+                          transform: `translateY(${wordOffsetY}px)`,
+                        } as React.CSSProperties
+                      }
+                    >
+                      {word.text}
+                    </span>
                   </span>
                 );
               })
