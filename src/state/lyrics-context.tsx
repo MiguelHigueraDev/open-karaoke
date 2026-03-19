@@ -11,7 +11,10 @@ import { parseLyrics } from '../lib/parse-lyrics';
 
 // ── State ──────────────────────────────────────────────────
 
+export type AppMode = 'home' | 'creator' | 'player';
+
 export interface AppState {
+  appMode: AppMode;
   step: Step;
   syncMode: SyncMode;
   audioFile: File | null;
@@ -26,6 +29,7 @@ const INITIAL_LYRICS: SyncedLyrics = {
 };
 
 const INITIAL_STATE: AppState = {
+  appMode: 'home',
   step: Step.Upload,
   syncMode: 'word',
   audioFile: null,
@@ -37,11 +41,13 @@ const INITIAL_STATE: AppState = {
 // ── Actions ────────────────────────────────────────────────
 
 export type Action =
+  | { type: 'SET_APP_MODE'; mode: AppMode }
   | { type: 'SET_AUDIO'; file: File; url: string; duration: number }
   | { type: 'SET_RAW_LYRICS'; text: string }
   | { type: 'SET_METADATA'; title: string; artist: string }
   | { type: 'SET_SYNC_MODE'; mode: SyncMode }
   | { type: 'GO_TO_STEP'; step: Step }
+  | { type: 'LOAD_SYNCED_LYRICS'; lyrics: SyncedLyrics; syncMode: SyncMode }
   | { type: 'SET_LINE_TIME'; lineIndex: number; time: number }
   | { type: 'UNDO_LINE_TIME' }
   | { type: 'INSERT_INSTRUMENTAL'; atIndex: number; time: number }
@@ -56,6 +62,19 @@ export type Action =
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'SET_APP_MODE': {
+      // Reset state when switching modes
+      if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
+      return { ...INITIAL_STATE, appMode: action.mode };
+    }
+
+    case 'LOAD_SYNCED_LYRICS':
+      return {
+        ...state,
+        lyrics: action.lyrics,
+        syncMode: action.syncMode,
+      };
+
     case 'SET_AUDIO': {
       if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
       return {

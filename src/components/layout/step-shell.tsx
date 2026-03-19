@@ -36,7 +36,12 @@ export function StepShell({ children, nextLabel, onNext }: Props) {
             Back
           </button>
         ) : (
-          <div />
+          <button
+            className="px-4 py-2 text-xs border border-border rounded-lg bg-transparent text-text-muted cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent hover:text-text-primary"
+            onClick={() => dispatch({ type: 'SET_APP_MODE', mode: 'home' })}
+          >
+            Home
+          </button>
         )}
         {next && (
           <button
