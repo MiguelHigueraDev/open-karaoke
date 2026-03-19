@@ -1,73 +1,52 @@
-# React + TypeScript + Vite
+# Open Lyrics
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web app for syncing lyrics to audio with word-level precision, karaoke-style. Upload a song, paste lyrics, tap along to the beat, and export time-synced lyrics as JSON.
 
-Currently, two official plugins are available:
+## How It Works
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The app walks you through a 5-step workflow:
 
-## React Compiler
+1. **Upload** — Drop in an audio file (MP3, WAV, OGG, FLAC, M4A) and paste plain-text lyrics. Add song title and artist.
+2. **Line Sync** — Play the audio and press `Space` each time a new line starts being sung. `Backspace` to undo. Adjustable playback speed (0.5x, 0.75x, 1x).
+3. **Word Sync** — For each line, the audio loops over that line's segment. Press `Space` for each word as it's sung. Navigate between lines freely and re-sync any line.
+4. **Preview** — Watch a karaoke-style playback with a gradient wipe effect across each word as it's sung.
+5. **Export** — Copy the synced lyrics JSON to clipboard or download as a `.json` file.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Output Format
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```json
+{
+  "metadata": { "title": "Song Title", "artist": "Artist", "duration": 210 },
+  "lines": [
+    {
+      "id": "l0",
+      "index": 0,
+      "startTime": 14.5,
+      "endTime": 17.8,
+      "words": [
+        { "id": "l0w0", "text": "Never", "startTime": 14.5, "endTime": 15.1 },
+        { "id": "l0w1", "text": "gonna", "startTime": 15.1, "endTime": 15.6 },
+        { "id": "l0w2", "text": "give", "startTime": 15.6, "endTime": 16.2 },
+        { "id": "l0w3", "text": "you", "startTime": 16.2, "endTime": 16.5 },
+        { "id": "l0w4", "text": "up", "startTime": 16.5, "endTime": 17.8 }
+      ]
+    }
+  ]
+}
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Times are in seconds. Each word has a `startTime` and `endTime`, enabling smooth karaoke-style rendering in any player that consumes this format.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Development
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+pnpm install
+pnpm dev
 ```
+
+## Tech Stack
+
+- React 19 + TypeScript
+- Vite 8
+- Tailwind CSS 4
+- wavesurfer.js (audio waveform + playback)
