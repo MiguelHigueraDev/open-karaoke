@@ -41,6 +41,7 @@ export type Action =
   | { type: 'GO_TO_STEP'; step: Step }
   | { type: 'SET_LINE_TIME'; lineIndex: number; time: number }
   | { type: 'UNDO_LINE_TIME' }
+  | { type: 'INSERT_INSTRUMENTAL'; atIndex: number; time: number }
   | { type: 'FINALIZE_LINES'; duration: number }
   | { type: 'SET_WORD_TIME'; lineIndex: number; wordIndex: number; time: number }
   | { type: 'UNDO_WORD_TIME'; lineIndex: number }
@@ -104,6 +105,32 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, lyrics: { ...state.lyrics, lines } };
     }
 
+    case 'INSERT_INSTRUMENTAL': {
+      const newLine = {
+        id: `l${action.atIndex}ins`,
+        index: action.atIndex,
+        isInstrumental: true,
+        insertedDuringSync: true,
+        startTime: action.time,
+        endTime: null,
+        words: [],
+      };
+      const before = state.lyrics.lines.slice(0, action.atIndex).map((line, i) => {
+        // Set previous line's endTime
+        if (i === action.atIndex - 1 && line.endTime === null) {
+          return { ...line, endTime: action.time };
+        }
+        return line;
+      });
+      const after = state.lyrics.lines.slice(action.atIndex);
+      const lines = [...before, newLine, ...after].map((line, i) => ({
+        ...line,
+        id: line.insertedDuringSync ? line.id : `l${i}`,
+        index: i,
+      }));
+      return { ...state, lyrics: { ...state.lyrics, lines } };
+    }
+
     case 'UNDO_LINE_TIME': {
       // Find the last synced line and clear it
       const lastSynced = [...state.lyrics.lines]
@@ -111,6 +138,21 @@ function reducer(state: AppState, action: Action): AppState {
         .findIndex((l) => l.startTime !== null);
       if (lastSynced === -1) return state;
       const idx = state.lyrics.lines.length - 1 - lastSynced;
+      const target = state.lyrics.lines[idx];
+
+      // If the line was inserted during sync, remove it entirely
+      if (target.insertedDuringSync) {
+        const lines = state.lyrics.lines
+          .filter((_, i) => i !== idx)
+          .map((line, i) => {
+            const updated = { ...line, index: i };
+            // Clear the endTime of what was the previous line
+            if (i === idx - 1) return { ...updated, endTime: null };
+            return updated;
+          });
+        return { ...state, lyrics: { ...state.lyrics, lines } };
+      }
+
       const lines = state.lyrics.lines.map((line, i) => {
         if (i === idx) return { ...line, startTime: null, endTime: null };
         if (i === idx - 1) return { ...line, endTime: null };

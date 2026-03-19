@@ -11,7 +11,7 @@ export function LyricsInput() {
       </label>
       <textarea
         id="lyrics-textarea"
-        placeholder={'Paste your lyrics here...\nOne line per line.\nEmpty lines are ignored.'}
+        placeholder={'Paste your lyrics here...\nOne line per line.\nEmpty lines are ignored.\nUse [INSTRUMENTAL] for instrumental breaks.'}
         value={rawLyrics}
         onChange={(e) =>
           dispatch({ type: 'SET_RAW_LYRICS', text: e.target.value })

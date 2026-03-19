@@ -89,8 +89,8 @@ export function WordSyncScreen() {
 
   if (audio.isReady) audio.setPlaybackRate(playbackRate);
 
-  const allLinesDone = lyrics.lines.every((l) =>
-    l.words.every((w) => w.startTime !== null),
+  const allLinesDone = lyrics.lines.every(
+    (l) => l.isInstrumental || l.words.every((w) => w.startTime !== null),
   );
 
   const handleFinalize = () => {
@@ -176,42 +176,52 @@ export function WordSyncScreen() {
         <div className="px-4 py-3 bg-bg-surface rounded-lg">
           {currentLineIdx > 0 && (
             <div className="text-xs text-text-dim leading-relaxed">
-              {lyrics.lines[currentLineIdx - 1].words
-                .map((w) => w.text)
-                .join(' ')}
+              {lyrics.lines[currentLineIdx - 1].isInstrumental
+                ? '♪ Instrumental ♪'
+                : lyrics.lines[currentLineIdx - 1].words
+                    .map((w) => w.text)
+                    .join(' ')}
             </div>
           )}
           <div className="text-sm text-text-primary font-semibold leading-relaxed">
-            {currentLine?.words.map((w) => w.text).join(' ')}
+            {currentLine?.isInstrumental
+              ? '♪ Instrumental ♪'
+              : currentLine?.words.map((w) => w.text).join(' ')}
           </div>
         </div>
 
-        {/* Word list */}
-        <div className="flex flex-wrap gap-2 p-4 bg-bg-surface rounded-lg min-h-[80px]">
-          {currentLine?.words.map((word, i) => {
-            const isSynced = word.startTime !== null;
-            const isActive = i === nextUnsyncedWordIdx;
-            return (
-              <span
-                key={word.id}
-                className={`inline-flex flex-col items-center gap-1 px-3.5 py-2 rounded-md text-base border transition-all ${
-                  isActive
-                    ? 'text-text-primary border-accent bg-accent/10 font-semibold'
-                    : isSynced
-                      ? 'text-success bg-success/5 border-transparent'
-                      : 'text-text-dim bg-bg border-transparent'
-                }`}
-              >
-                {word.text}
-                {isSynced && (
-                  <span className="text-[9px] font-mono text-text-dim">
-                    {formatTime(word.startTime)}
-                  </span>
-                )}
-              </span>
-            );
-          })}
-        </div>
+        {/* Word list / Instrumental indicator */}
+        {currentLine?.isInstrumental ? (
+          <div className="flex items-center justify-center gap-2 p-6 bg-bg-surface rounded-lg min-h-[80px] text-text-muted italic">
+            ♪ Instrumental break — no words to sync ♪
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 p-4 bg-bg-surface rounded-lg min-h-[80px]">
+            {currentLine?.words.map((word, i) => {
+              const isSynced = word.startTime !== null;
+              const isActive = i === nextUnsyncedWordIdx;
+              return (
+                <span
+                  key={word.id}
+                  className={`inline-flex flex-col items-center gap-1 px-3.5 py-2 rounded-md text-base border transition-all ${
+                    isActive
+                      ? 'text-text-primary border-accent bg-accent/10 font-semibold'
+                      : isSynced
+                        ? 'text-success bg-success/5 border-transparent'
+                        : 'text-text-dim bg-bg border-transparent'
+                  }`}
+                >
+                  {word.text}
+                  {isSynced && (
+                    <span className="text-[9px] font-mono text-text-dim">
+                      {formatTime(word.startTime)}
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {allWordsInLineSynced && !allLinesDone && (
           <div className="flex items-center justify-center gap-3 p-4 bg-success/[0.08] border border-success/20 rounded-lg text-success text-sm font-semibold">

@@ -25,6 +25,12 @@ export function LineSyncScreen() {
     dispatch({ type: 'UNDO_LINE_TIME' });
   }, [dispatch]);
 
+  const handleInsertInstrumental = useCallback(() => {
+    if (!isPlayingRef.current || allSynced) return;
+    const time = getCurrentTimeRef.current();
+    dispatch({ type: 'INSERT_INSTRUMENTAL', atIndex: nextUnsyncedIdx, time });
+  }, [dispatch, nextUnsyncedIdx, allSynced]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (
@@ -38,11 +44,14 @@ export function LineSyncScreen() {
       } else if (e.code === 'Backspace') {
         e.preventDefault();
         handleUndo();
+      } else if (e.code === 'KeyI') {
+        e.preventDefault();
+        handleInsertInstrumental();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleTap, handleUndo]);
+  }, [handleTap, handleUndo, handleInsertInstrumental]);
 
   useEffect(() => {
     activeLineRef.current?.scrollIntoView({
@@ -66,15 +75,18 @@ export function LineSyncScreen() {
 
         <div className="flex justify-between items-center px-4 py-3 bg-bg-surface rounded-lg text-sm text-text-muted">
           <p>
-            Press{' '}
             <kbd className="inline-block px-2 py-0.5 text-xs font-mono bg-bg-elevated border border-border rounded text-accent-glow">
               Space
             </kbd>{' '}
-            when each line starts.{' '}
+            line start{' · '}
+            <kbd className="inline-block px-2 py-0.5 text-xs font-mono bg-bg-elevated border border-border rounded text-accent-glow">
+              I
+            </kbd>{' '}
+            instrumental break{' · '}
             <kbd className="inline-block px-2 py-0.5 text-xs font-mono bg-bg-elevated border border-border rounded text-accent-glow">
               Backspace
             </kbd>{' '}
-            to undo.
+            undo
           </p>
           <div className="flex items-center gap-1.5">
             <label className="text-xs text-text-dim mr-1">Speed:</label>
@@ -116,15 +128,17 @@ export function LineSyncScreen() {
                   {isSynced ? formatTime(line.startTime) : '--:--.---'}
                 </span>
                 <span
-                  className={
+                  className={`${
                     isActive
                       ? 'text-text-primary font-semibold'
                       : isSynced
                         ? 'text-text-muted'
                         : 'text-text-dim'
-                  }
+                  } ${line.isInstrumental ? 'italic' : ''}`}
                 >
-                  {line.words.map((w) => w.text).join(' ')}
+                  {line.isInstrumental
+                    ? '♪ Instrumental ♪'
+                    : line.words.map((w) => w.text).join(' ')}
                 </span>
               </div>
             );

@@ -48,28 +48,53 @@ export function KaraokeRenderer({ lyrics, getCurrentTime, isPlaying }: Props) {
                 : 'text-xl text-text-dim'
             }`}
           >
-            {line.words.map((word) => {
-              const wordStart = word.startTime ?? 0;
-              const wordEnd = word.endTime ?? wordStart;
-              const wordDuration = wordEnd - wordStart;
+            {line.isInstrumental ? (
+              <span
+                className={`italic ${isActive ? 'karaoke-word' : ''}`}
+                style={
+                  isActive
+                    ? ({
+                        '--progress': `${(() => {
+                          const s = line.startTime ?? 0;
+                          const e = line.endTime ?? s;
+                          const d = e - s;
+                          if (currentTime >= e) return 100;
+                          if (currentTime > s && d > 0)
+                            return ((currentTime - s) / d) * 100;
+                          return 0;
+                        })()}%`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+              >
+                ♪ Instrumental ♪
+              </span>
+            ) : (
+              line.words.map((word) => {
+                const wordStart = word.startTime ?? 0;
+                const wordEnd = word.endTime ?? wordStart;
+                const wordDuration = wordEnd - wordStart;
 
-              let progress = 0;
-              if (currentTime >= wordEnd) progress = 1;
-              else if (currentTime > wordStart && wordDuration > 0)
-                progress = (currentTime - wordStart) / wordDuration;
+                let progress = 0;
+                if (currentTime >= wordEnd) progress = 1;
+                else if (currentTime > wordStart && wordDuration > 0)
+                  progress = (currentTime - wordStart) / wordDuration;
 
-              return (
-                <span
-                  key={word.id}
-                  className="karaoke-word"
-                  style={
-                    { '--progress': `${progress * 100}%` } as React.CSSProperties
-                  }
-                >
-                  {word.text}{' '}
-                </span>
-              );
-            })}
+                return (
+                  <span
+                    key={word.id}
+                    className="karaoke-word"
+                    style={
+                      {
+                        '--progress': `${progress * 100}%`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {word.text}{' '}
+                  </span>
+                );
+              })
+            )}
           </div>
         );
       })}

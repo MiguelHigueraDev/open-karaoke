@@ -6,6 +6,7 @@ export function exportToJson(lyrics: SyncedLyrics): string {
     lines: lyrics.lines.map((line) => ({
       id: line.id,
       index: line.index,
+      isInstrumental: line.isInstrumental,
       startTime: round(line.startTime),
       endTime: round(line.endTime),
       words: line.words.map((w) => ({

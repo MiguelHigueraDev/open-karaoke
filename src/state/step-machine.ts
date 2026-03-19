@@ -8,8 +8,9 @@ export function canAdvance(step: Step, lyrics: SyncedLyrics): boolean {
     case Step.LineSync:
       return lyrics.lines.every((l) => l.startTime !== null);
     case Step.WordSync:
-      return lyrics.lines.every((l) =>
-        l.words.every((w) => w.startTime !== null),
+      return lyrics.lines.every(
+        (l) =>
+          l.isInstrumental || l.words.every((w) => w.startTime !== null),
       );
     case Step.Preview:
       return true;
