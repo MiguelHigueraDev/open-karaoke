@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@napi-rs/canvas": "^0.1.97",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.1.0",
     "@types/node": "^24.12.0",
