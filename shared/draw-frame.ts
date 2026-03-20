@@ -50,6 +50,11 @@ type SyncMode = 'line' | 'word';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Ctx = any;
 
+// Smooth camera transition duration in seconds
+const CAMERA_TRANSITION_DURATION = 0.5;
+// How many lines above/below active to show (matches React component)
+const VISIBLE_RANGE = 2;
+
 export function drawFrame(
   ctx: Ctx,
   lyrics: DrawLyrics,
@@ -60,8 +65,11 @@ export function drawFrame(
   ctx.fillStyle = COLOR_BG;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
+  const lineHeight = 80;
+  const lines = lyrics.lines;
+
   // Find active line
-  const activeLineIdx = lyrics.lines.findIndex(
+  const activeLineIdx = lines.findIndex(
     (l: DrawLine) =>
       l.startTime !== null &&
       l.endTime !== null &&
@@ -69,20 +77,54 @@ export function drawFrame(
       currentTime < l.endTime,
   );
 
-  // Compute visible window
-  const windowStart = Math.max(0, activeLineIdx - 1);
-  const windowEnd = Math.min(lyrics.lines.length, activeLineIdx + 3);
-  const visibleLines = lyrics.lines.slice(
-    Math.max(windowStart, 0),
-    Math.max(windowEnd, Math.min(4, lyrics.lines.length)),
-  );
+  // Determine effective index: if between lines, find the closest context
+  let effectiveIdx: number;
+  if (activeLineIdx >= 0) {
+    effectiveIdx = activeLineIdx;
+  } else {
+    let lastPast = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].endTime !== null && currentTime >= lines[i].endTime!) {
+        lastPast = i;
+      }
+    }
+    effectiveIdx = lastPast >= 0 ? lastPast : 0;
+  }
 
-  // Layout lines centered vertically
-  const lineHeight = 80;
-  const totalHeight = visibleLines.length * lineHeight;
-  let y = (HEIGHT - totalHeight) / 2 + lineHeight / 2;
+  // Camera target: center of the effective line in "virtual" space
+  const targetCameraY = effectiveIdx * lineHeight;
 
-  for (const line of visibleLines) {
+  // Smooth camera: ease from previous line's position when a line just became active
+  let cameraY = targetCameraY;
+  if (activeLineIdx >= 0 && activeLineIdx > 0) {
+    const lineStart = lines[activeLineIdx].startTime ?? 0;
+    const elapsed = currentTime - lineStart;
+    if (elapsed < CAMERA_TRANSITION_DURATION) {
+      const t = elapsed / CAMERA_TRANSITION_DURATION;
+      const eased = 1 - (1 - t) ** 3; // cubic ease-out
+      const prevCameraY = (activeLineIdx - 1) * lineHeight;
+      cameraY = prevCameraY + (targetCameraY - prevCameraY) * eased;
+    }
+  }
+
+  // Screen center Y (leave room for metadata at bottom)
+  const screenCenterY = HEIGHT / 2 - 20;
+
+  // Clip to a content area (leave space for metadata)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, WIDTH, HEIGHT - 80);
+  ctx.clip();
+
+  // Only render lines within visible range
+  for (let idx = 0; idx < lines.length; idx++) {
+    const dist = Math.abs(idx - effectiveIdx);
+    if (dist > VISIBLE_RANGE) continue;
+
+    const line = lines[idx];
+    const virtualY = idx * lineHeight;
+    const screenY = screenCenterY + (virtualY - cameraY);
+
     const isActive =
       line.startTime !== null &&
       line.endTime !== null &&
@@ -91,16 +133,57 @@ export function drawFrame(
 
     const isPast = line.endTime !== null && currentTime >= line.endTime;
 
-    if (line.isInstrumental) {
-      drawInstrumentalDots(ctx, y, isActive, isPast, currentTime, line);
-    } else if (syncMode === 'line') {
-      drawLineModeText(ctx, line, y, isActive, isPast);
+    // Opacity: active=1, edge lines=0.2, nearby=0.4/0.5
+    let lineOpacity: number;
+    if (isActive) {
+      lineOpacity = 1.0;
+    } else if (dist === VISIBLE_RANGE) {
+      lineOpacity = 0.2;
     } else {
-      drawWordModeText(ctx, line, y, isActive, isPast, currentTime);
+      lineOpacity = isPast ? 0.4 : 0.5;
     }
 
-    y += lineHeight;
+    // Smooth transition when becoming/leaving active state
+    if (!isActive && line.endTime !== null && currentTime >= line.endTime!) {
+      const fadeElapsed = currentTime - line.endTime!;
+      if (fadeElapsed < 0.3) {
+        const t = fadeElapsed / 0.3;
+        const eased = 1 - (1 - t) ** 2;
+        lineOpacity = 1.0 + (lineOpacity - 1.0) * eased;
+      }
+    }
+    if (!isActive && line.startTime !== null && currentTime < line.startTime!) {
+      const untilActive = line.startTime! - currentTime;
+      if (untilActive < 0.3) {
+        const t = 1 - untilActive / 0.3;
+        const eased = t * t;
+        lineOpacity = lineOpacity + (1.0 - lineOpacity) * eased;
+      }
+    }
+
+    const lineScale = isActive ? 1.0 : 0.95;
+
+    ctx.save();
+    ctx.globalAlpha = lineOpacity;
+
+    if (lineScale !== 1.0) {
+      ctx.translate(WIDTH / 2, screenY);
+      ctx.scale(lineScale, lineScale);
+      ctx.translate(-WIDTH / 2, -screenY);
+    }
+
+    if (line.isInstrumental) {
+      drawInstrumentalDots(ctx, screenY, isActive, isPast, currentTime, line);
+    } else if (syncMode === 'line') {
+      drawLineModeText(ctx, line, screenY, isActive, isPast);
+    } else {
+      drawWordModeText(ctx, line, screenY, isActive, isPast, currentTime);
+    }
+
+    ctx.restore();
   }
+
+  ctx.restore(); // restore clip
 
   // Draw metadata at bottom
   ctx.fillStyle = COLOR_TEXT_DIM;

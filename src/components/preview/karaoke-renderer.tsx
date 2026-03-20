@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { SyncedLyrics, SyncMode } from '../../types/lyrics';
-import { useAnimationFrame } from '../../hooks/use-animation-frame';
-import { InstrumentalDots } from './instrumental-dots';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { SyncedLyrics, SyncMode } from "../../types/lyrics";
+import { useAnimationFrame } from "../../hooks/use-animation-frame";
+import { InstrumentalDots } from "./instrumental-dots";
 
 interface Props {
   lyrics: SyncedLyrics;
@@ -28,7 +34,7 @@ export function KaraokeRenderer({
 
   const exitFullscreen = useCallback(() => setFullscreen(false), []);
   const [showControls, setShowControls] = useState(true);
-  const idleTimer = useRef<ReturnType<typeof setTimeout>>();
+  const idleTimer = useRef<ReturnType<typeof setTimeout>>(0);
 
   const resetIdleTimer = useCallback(() => {
     setShowControls(true);
@@ -45,7 +51,7 @@ export function KaraokeRenderer({
     resetIdleTimer();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') {
+      if (e.code === "Escape") {
         e.preventDefault();
         exitFullscreen();
       }
@@ -53,11 +59,11 @@ export function KaraokeRenderer({
     };
     const onMouse = () => resetIdleTimer();
 
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('mousemove', onMouse);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousemove", onMouse);
     return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('mousemove', onMouse);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousemove", onMouse);
       clearTimeout(idleTimer.current);
     };
   }, [fullscreen, exitFullscreen, resetIdleTimer]);
@@ -70,110 +76,162 @@ export function KaraokeRenderer({
       currentTime < l.endTime,
   );
 
-  const windowStart = Math.max(0, activeLineIdx - 1);
-  const windowEnd = Math.min(lyrics.lines.length, activeLineIdx + 3);
-  const visibleLines = lyrics.lines.slice(
-    Math.max(windowStart, 0),
-    Math.max(windowEnd, Math.min(4, lyrics.lines.length)),
-  );
+  // Track the last known active line so we keep position between lines
+  const lastActiveIdx = useRef(0);
+  if (activeLineIdx >= 0) lastActiveIdx.current = activeLineIdx;
+  const effectiveIdx =
+    activeLineIdx >= 0 ? activeLineIdx : lastActiveIdx.current;
+
+  // Refs for smooth scroll offset calculation
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const lineEls = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [scrollOffset, setScrollOffset] = useState(0);
+
+  // Recalculate offset when active line changes
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const lineEl = lineEls.current.get(effectiveIdx);
+    if (!viewport || !lineEl) return;
+
+    const vpHeight = viewport.clientHeight;
+    const lineTop = lineEl.offsetTop;
+    const lineHeight = lineEl.offsetHeight;
+    setScrollOffset(vpHeight / 2 - lineTop - lineHeight / 2);
+  }, [effectiveIdx, fullscreen]);
+
+  // How many lines above/below active to show
+  const VISIBLE_RANGE = 2;
 
   const lyricsContent = (
-    <>
-      {visibleLines.map((line) => {
-        const isActive =
-          line.startTime !== null &&
-          line.endTime !== null &&
-          currentTime >= line.startTime &&
-          currentTime < line.endTime;
+    <div
+      ref={viewportRef}
+      className="overflow-hidden"
+      style={{ height: fullscreen ? "100%" : "300px" }}
+    >
+      <div
+        className="flex flex-col items-center gap-4 transition-transform duration-700 ease-out"
+        style={{
+          transform: `translateY(${scrollOffset}px)`,
+          paddingTop: fullscreen ? "40vh" : "130px",
+          paddingBottom: fullscreen ? "40vh" : "130px",
+        }}
+      >
+        {lyrics.lines.map((line, idx) => {
+          const isActive =
+            line.startTime !== null &&
+            line.endTime !== null &&
+            currentTime >= line.startTime &&
+            currentTime < line.endTime;
 
-        const isPast =
-          line.endTime !== null && currentTime >= line.endTime;
+          const isPast = line.endTime !== null && currentTime >= line.endTime;
 
-        return (
-          <div
-            key={line.id}
-            className={`text-center transition-[font-size,color] duration-300 ${
-              isActive
-                ? fullscreen
-                  ? 'text-[42px] font-bold'
-                  : 'text-[28px] font-bold'
-                : fullscreen
-                  ? 'text-2xl'
-                  : 'text-xl'
-            } ${
-              syncMode === 'line'
-                ? isActive
-                  ? 'text-accent-glow'
-                  : isPast
-                    ? 'text-text-muted'
-                    : 'text-text-dim'
-                : 'text-text-dim'
-            }`}
-          >
-            {line.isInstrumental ? (
-              <InstrumentalDots
-                isActive={isActive}
-                isPast={isPast}
-                progress={(() => {
-                  const s = line.startTime ?? 0;
-                  const e = line.endTime ?? s;
-                  const d = e - s;
-                  if (d <= 0 || currentTime >= e) return 1;
-                  if (currentTime <= s) return 0;
-                  return (currentTime - s) / d;
-                })()}
-                size={fullscreen ? 'large' : 'normal'}
-              />
-            ) : syncMode === 'line' ? (
-              <span>{line.words.map((w) => w.text).join(' ')}</span>
-            ) : (
-              line.words.map((word) => {
-                const wordStart = word.startTime ?? 0;
-                const wordEnd = word.endTime ?? wordStart;
-                const wordDuration = wordEnd - wordStart;
+          const dist = Math.abs(idx - effectiveIdx);
+          // Lines beyond VISIBLE_RANGE fade to 0
+          const visible = dist <= VISIBLE_RANGE;
 
-                let wordProgress = 0;
-                if (currentTime >= wordEnd) wordProgress = 1;
-                else if (currentTime > wordStart && wordDuration > 0)
-                  wordProgress = (currentTime - wordStart) / wordDuration;
+          let opacity: number;
+          if (isActive) {
+            opacity = 1;
+          } else if (!visible) {
+            opacity = 0;
+          } else if (dist === VISIBLE_RANGE) {
+            opacity = 0.2;
+          } else {
+            opacity = isPast ? 0.4 : 0.5;
+          }
 
-                // Settle: word starts slightly offset up, eases to 0 as it's sung
-                const maxOffset = fullscreen ? 4 : 3;
-                // Cubic ease-out for a gentle, smooth settle
-                const t = Math.min(wordProgress, 1);
-                const eased = 1 - (1 - t) ** 3;
-                const wordOffsetY = wordProgress >= 1 ? 0 : maxOffset * (1 - eased);
+          return (
+            <div
+              key={line.id}
+              ref={(el) => {
+                if (el) lineEls.current.set(idx, el);
+                else lineEls.current.delete(idx);
+              }}
+              style={{ opacity, transform: `scale(${isActive ? 1 : 0.95})` }}
+              className={`text-center transition-[opacity,transform,font-size,color] duration-500 ${
+                isActive
+                  ? fullscreen
+                    ? "text-[42px] font-bold"
+                    : "text-[28px] font-bold"
+                  : fullscreen
+                    ? "text-2xl"
+                    : "text-xl"
+              } ${
+                syncMode === "line"
+                  ? isActive
+                    ? "text-accent-glow"
+                    : isPast
+                      ? "text-text-muted"
+                      : "text-text-dim"
+                  : "text-text-dim"
+              }`}
+            >
+              {line.isInstrumental ? (
+                <InstrumentalDots
+                  isActive={isActive}
+                  isPast={isPast}
+                  progress={(() => {
+                    const s = line.startTime ?? 0;
+                    const e = line.endTime ?? s;
+                    const d = e - s;
+                    if (d <= 0 || currentTime >= e) return 1;
+                    if (currentTime <= s) return 0;
+                    return (currentTime - s) / d;
+                  })()}
+                  size={fullscreen ? "large" : "normal"}
+                />
+              ) : syncMode === "line" ? (
+                <span>{line.words.map((w) => w.text).join(" ")}</span>
+              ) : (
+                line.words.map((word) => {
+                  const wordStart = word.startTime ?? 0;
+                  const wordEnd = word.endTime ?? wordStart;
+                  const wordDuration = wordEnd - wordStart;
 
-                return (
-                  <span key={word.id} className="inline-block mr-[0.3em]">
-                    <span
-                      className="karaoke-word inline-block"
-                      style={
-                        {
-                          '--progress': `${wordProgress * 100}%`,
-                          transform: `translateY(${wordOffsetY}px)`,
-                        } as React.CSSProperties
-                      }
-                    >
-                      {word.text}
+                  let wordProgress = 0;
+                  if (currentTime >= wordEnd) wordProgress = 1;
+                  else if (currentTime > wordStart && wordDuration > 0)
+                    wordProgress = (currentTime - wordStart) / wordDuration;
+
+                  // Settle: word starts slightly offset up, eases to 0 as it's sung
+                  const maxOffset = fullscreen ? 4 : 3;
+                  // Cubic ease-out for a gentle, smooth settle
+                  const t = Math.min(wordProgress, 1);
+                  const eased = 1 - (1 - t) ** 3;
+                  const wordOffsetY =
+                    wordProgress >= 1 ? 0 : maxOffset * (1 - eased);
+
+                  return (
+                    <span key={word.id} className="inline-block mr-[0.3em]">
+                      <span
+                        className="karaoke-word inline-block"
+                        style={
+                          {
+                            "--progress": `${wordProgress * 100}%`,
+                            transform: `translateY(${wordOffsetY}px)`,
+                          } as React.CSSProperties
+                        }
+                      >
+                        {word.text}
+                      </span>
                     </span>
-                  </span>
-                );
-              })
-            )}
-          </div>
-        );
-      })}
-    </>
+                  );
+                })
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 
   if (fullscreen) {
     return (
       <div
-        className={`fixed inset-0 z-50 flex flex-col bg-bg ${showControls ? 'cursor-default' : 'cursor-none'}`}
+        className={`fixed inset-0 z-50 flex flex-col bg-bg ${showControls ? "cursor-default" : "cursor-none"}`}
       >
         <div
-          className={`absolute top-5 right-5 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`absolute top-5 right-5 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         >
           <button
             className="px-3 py-1.5 text-xs border border-border rounded-lg bg-bg-surface text-text-muted cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent hover:text-text-primary"
@@ -182,11 +240,11 @@ export function KaraokeRenderer({
             Exit Fullscreen
           </button>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-10">
+        <div className="flex-1 flex flex-col items-center justify-center px-10">
           {lyricsContent}
         </div>
         <div
-          className={`px-6 py-4 border-t border-border transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`px-6 py-4 border-t border-border transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         >
           {controls}
         </div>
@@ -202,9 +260,7 @@ export function KaraokeRenderer({
       >
         Fullscreen
       </button>
-      <div className="flex flex-col items-center justify-center gap-4 min-h-[300px] py-10 px-6 bg-bg-surface rounded-lg">
-        {lyricsContent}
-      </div>
+      <div className="px-6 bg-bg-surface rounded-lg">{lyricsContent}</div>
     </div>
   );
 }
