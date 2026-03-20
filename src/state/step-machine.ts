@@ -1,14 +1,14 @@
-import type { SyncedLyrics, SyncMode } from '../types/lyrics';
-import { Step, STEP_ORDER } from '../types/steps';
+import type { SyncedLyrics, SyncMode } from "../types/lyrics";
+import { Step, STEP_ORDER } from "../types/steps";
 
 function getSteps(syncMode: SyncMode): Step[] {
-  if (syncMode === 'line') {
+  if (syncMode === "line") {
     return STEP_ORDER.filter((s) => s !== Step.WordSync);
   }
   return STEP_ORDER;
 }
 
-export function canAdvance(step: Step, lyrics: SyncedLyrics, syncMode: SyncMode): boolean {
+export function canAdvance(step: Step, lyrics: SyncedLyrics): boolean {
   switch (step) {
     case Step.Upload:
       return lyrics.lines.length > 0 && lyrics.metadata.duration > 0;
@@ -16,8 +16,7 @@ export function canAdvance(step: Step, lyrics: SyncedLyrics, syncMode: SyncMode)
       return lyrics.lines.every((l) => l.startTime !== null);
     case Step.WordSync:
       return lyrics.lines.every(
-        (l) =>
-          l.isInstrumental || l.words.every((w) => w.startTime !== null),
+        (l) => l.isInstrumental || l.words.every((w) => w.startTime !== null),
       );
     case Step.Preview:
       return true;
