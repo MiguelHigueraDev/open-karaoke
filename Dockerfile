@@ -2,7 +2,7 @@ FROM node:22-bookworm-slim
 
 # Install ffmpeg, python3, and venv support
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg python3 python3-venv && \
+    apt-get install -y --no-install-recommends ffmpeg python3 python3-venv libpython3.11 && \
     rm -rf /var/lib/apt/lists/*
 
 # Enable corepack for pnpm
