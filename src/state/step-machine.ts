@@ -8,7 +8,11 @@ function getSteps(syncMode: SyncMode): Step[] {
   return STEP_ORDER;
 }
 
-export function canAdvance(step: Step, lyrics: SyncedLyrics): boolean {
+export function canAdvance(
+  step: Step,
+  lyrics: SyncedLyrics,
+  _syncMode: SyncMode,
+): boolean {
   switch (step) {
     case Step.Upload:
       return lyrics.lines.length > 0 && lyrics.metadata.duration > 0;
@@ -21,7 +25,7 @@ export function canAdvance(step: Step, lyrics: SyncedLyrics): boolean {
     case Step.Preview:
       return true;
     case Step.Export:
-      return false; // last step
+      return false;
   }
 }
 
