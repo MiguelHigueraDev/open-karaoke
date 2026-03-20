@@ -1,57 +1,69 @@
-import express from 'express';
-import multer from 'multer';
-import { execFile, spawn } from 'child_process';
-import { mkdtemp, rm, readdir, access } from 'fs/promises';
-import { createReadStream } from 'fs';
-import { join, dirname } from 'path';
-import { tmpdir } from 'os';
-import { fileURLToPath } from 'url';
-import { createCanvas } from '@napi-rs/canvas';
+import express from "express";
+import multer from "multer";
+import { execFile, spawn } from "child_process";
+import { mkdtemp, rm, readdir, access } from "fs/promises";
+import { createReadStream } from "fs";
+import { join, dirname } from "path";
+import { tmpdir } from "os";
+import { fileURLToPath } from "url";
+import { createCanvas } from "@napi-rs/canvas";
 import {
   drawFrame,
   VIDEO_WIDTH,
   VIDEO_HEIGHT,
   FPS,
   type DrawLyrics,
-} from '../shared/draw-frame.js';
+} from "../shared/draw-frame.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..');
-const VENV_DIR = join(PROJECT_ROOT, '.venv');
-const VENV_PYTHON = join(VENV_DIR, 'bin', 'python3');
+const PROJECT_ROOT = join(__dirname, "..");
+const VENV_DIR = join(PROJECT_ROOT, ".venv");
+const VENV_PYTHON = join(VENV_DIR, "bin", "python3");
 
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = parseInt(process.env.PORT || "3001", 10);
 const app = express();
 
-app.use(express.json({ limit: '50mb' }));
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+app.use((_req, res, next) => {
+  res.header("Access-Control-Allow-Origin", CORS_ORIGIN);
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  if (_req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
 
-const upload = multer({ dest: join(tmpdir(), 'open-karaoke-uploads') });
+app.use(express.json({ limit: "50mb" }));
+
+const upload = multer({ dest: join(tmpdir(), "open-karaoke-uploads") });
 
 // Check venv and demucs availability on startup
 access(VENV_PYTHON)
   .then(() => {
-    execFile(VENV_PYTHON, ['-m', 'demucs', '--help'], (err) => {
+    execFile(VENV_PYTHON, ["-m", "demucs", "--help"], (err) => {
       if (err) {
         console.error(
-          '\n⚠️  Demucs is not installed in the virtual environment.\n' +
-            '   Run: pnpm setup:demucs\n',
+          "\n⚠️  Demucs is not installed in the virtual environment.\n" +
+            "   Run: pnpm setup:demucs\n",
         );
       }
     });
   })
   .catch(() => {
     console.error(
-      '\n⚠️  Python virtual environment not found.\n' +
-        '   Run: pnpm setup:demucs\n',
+      "\n⚠️  Python virtual environment not found.\n" +
+        "   Run: pnpm setup:demucs\n",
     );
   });
 
 // Check ffmpeg availability on startup
-execFile('ffmpeg', ['-version'], (err) => {
+execFile("ffmpeg", ["-version"], (err) => {
   if (err) {
     console.error(
-      '\n⚠️  ffmpeg is not installed. Install it with:\n' +
-        '   brew install ffmpeg\n',
+      "\n⚠️  ffmpeg is not installed. Install it with:\n" +
+        "   brew install ffmpeg\n",
     );
   }
 });
@@ -60,17 +72,20 @@ execFile('ffmpeg', ['-version'], (err) => {
 // Demucs vocal separation
 // ---------------------------------------------------------------------------
 async function runDemucs(inputPath: string): Promise<string> {
-  const outputDir = await mkdtemp(join(tmpdir(), 'demucs-out-'));
+  const outputDir = await mkdtemp(join(tmpdir(), "demucs-out-"));
 
   await new Promise<void>((resolve, reject) => {
     const proc = execFile(
       VENV_PYTHON,
       [
-        '-m',
-        'demucs',
-        '--two-stems', 'vocals',
-        '-n', 'htdemucs',
-        '-o', outputDir,
+        "-m",
+        "demucs",
+        "--two-stems",
+        "vocals",
+        "-n",
+        "htdemucs",
+        "-o",
+        outputDir,
         inputPath,
       ],
       { timeout: 600_000 },
@@ -79,13 +94,13 @@ async function runDemucs(inputPath: string): Promise<string> {
         else resolve();
       },
     );
-    proc.stderr?.on('data', (data: Buffer) => process.stderr.write(data));
+    proc.stderr?.on("data", (data: Buffer) => process.stderr.write(data));
   });
 
-  const modelDir = join(outputDir, 'htdemucs');
+  const modelDir = join(outputDir, "htdemucs");
   const entries = await readdir(modelDir);
   const songDir = entries[0];
-  return join(modelDir, songDir, 'no_vocals.wav');
+  return join(modelDir, songDir, "no_vocals.wav");
 }
 
 // ---------------------------------------------------------------------------
@@ -93,22 +108,22 @@ async function runDemucs(inputPath: string): Promise<string> {
 // Accepts: multipart with "audio" file + "lyrics" JSON string + "syncMode" + "removeVocals"
 // Returns: mp4 video file
 // ---------------------------------------------------------------------------
-app.post('/api/export-video', upload.single('audio'), async (req, res) => {
+app.post("/api/export-video", upload.single("audio"), async (req, res) => {
   if (!req.file) {
-    res.status(400).json({ error: 'No audio file uploaded' });
+    res.status(400).json({ error: "No audio file uploaded" });
     return;
   }
 
   let lyrics: DrawLyrics;
-  let syncMode: 'line' | 'word';
+  let syncMode: "line" | "word";
   let removeVocals: boolean;
 
   try {
     lyrics = JSON.parse(req.body.lyrics);
-    syncMode = req.body.syncMode === 'line' ? 'line' : 'word';
-    removeVocals = req.body.removeVocals === 'true';
+    syncMode = req.body.syncMode === "line" ? "line" : "word";
+    removeVocals = req.body.removeVocals === "true";
   } catch {
-    res.status(400).json({ error: 'Invalid request body' });
+    res.status(400).json({ error: "Invalid request body" });
     return;
   }
 
@@ -128,11 +143,14 @@ app.post('/api/export-video', upload.single('audio'), async (req, res) => {
     // Get audio duration via ffprobe
     const duration = await new Promise<number>((resolve, reject) => {
       execFile(
-        'ffprobe',
+        "ffprobe",
         [
-          '-v', 'quiet',
-          '-show_entries', 'format=duration',
-          '-of', 'csv=p=0',
+          "-v",
+          "quiet",
+          "-show_entries",
+          "format=duration",
+          "-of",
+          "csv=p=0",
           audioPath,
         ],
         (err, stdout) => {
@@ -146,46 +164,64 @@ app.post('/api/export-video', upload.single('audio'), async (req, res) => {
 
     // Set up canvas
     const canvas = createCanvas(VIDEO_WIDTH, VIDEO_HEIGHT);
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
 
     // Spawn ffmpeg: pipe raw RGBA frames in, output mp4 with audio
-    const outputDir = await mkdtemp(join(tmpdir(), 'export-video-'));
+    const outputDir = await mkdtemp(join(tmpdir(), "export-video-"));
     tempDirs.push(outputDir);
-    const outputPath = join(outputDir, 'output.mp4');
+    const outputPath = join(outputDir, "output.mp4");
 
-    const ffmpeg = spawn('ffmpeg', [
-      '-y',
+    const ffmpeg = spawn("ffmpeg", [
+      "-y",
       // Video input: raw frames from stdin
-      '-f', 'rawvideo',
-      '-pix_fmt', 'rgba',
-      '-s', `${VIDEO_WIDTH}x${VIDEO_HEIGHT}`,
-      '-r', String(FPS),
-      '-i', 'pipe:0',
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "rgba",
+      "-s",
+      `${VIDEO_WIDTH}x${VIDEO_HEIGHT}`,
+      "-r",
+      String(FPS),
+      "-i",
+      "pipe:0",
       // Audio input
-      '-i', audioPath,
+      "-i",
+      audioPath,
       // Encoding settings
-      '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-crf', '23',
-      '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac',
-      '-b:a', '192k',
-      '-shortest',
-      '-movflags', '+faststart',
+      "-c:v",
+      "libx264",
+      "-preset",
+      "fast",
+      "-crf",
+      "23",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "192k",
+      "-shortest",
+      "-movflags",
+      "+faststart",
       outputPath,
     ]);
 
-    let ffmpegError = '';
-    ffmpeg.stderr.on('data', (data: Buffer) => {
+    let ffmpegError = "";
+    ffmpeg.stderr.on("data", (data: Buffer) => {
       ffmpegError += data.toString();
     });
 
     const ffmpegDone = new Promise<void>((resolve, reject) => {
-      ffmpeg.on('close', (code) => {
+      ffmpeg.on("close", (code) => {
         if (code === 0) resolve();
-        else reject(new Error(`ffmpeg exited with code ${code}: ${ffmpegError.slice(-500)}`));
+        else
+          reject(
+            new Error(
+              `ffmpeg exited with code ${code}: ${ffmpegError.slice(-500)}`,
+            ),
+          );
       });
-      ffmpeg.on('error', reject);
+      ffmpeg.on("error", reject);
     });
 
     // Render frames and pipe to ffmpeg
@@ -197,7 +233,9 @@ app.post('/api/export-video', upload.single('audio'), async (req, res) => {
       const buffer = canvas.data();
       const canWrite = ffmpeg.stdin.write(buffer);
       if (!canWrite) {
-        await new Promise<void>((resolve) => ffmpeg.stdin.once('drain', resolve));
+        await new Promise<void>((resolve) =>
+          ffmpeg.stdin.once("drain", resolve),
+        );
       }
     }
 
@@ -205,27 +243,27 @@ app.post('/api/export-video', upload.single('audio'), async (req, res) => {
     await ffmpegDone;
 
     // Stream the result
-    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader("Content-Type", "video/mp4");
     res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${(lyrics.metadata.title || 'karaoke').replace(/[^a-zA-Z0-9_-]/g, '_')}.mp4"`,
+      "Content-Disposition",
+      `attachment; filename="${(lyrics.metadata.title || "karaoke").replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4"`,
     );
 
     const stream = createReadStream(outputPath);
     stream.pipe(res);
-    stream.on('error', () => {
+    stream.on("error", () => {
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to read output file' });
+        res.status(500).json({ error: "Failed to read output file" });
       }
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Export failed';
-    console.error('Export error:', message);
+    const message = err instanceof Error ? err.message : "Export failed";
+    console.error("Export error:", message);
     if (!res.headersSent) {
       res.status(500).json({ error: message });
     }
   } finally {
-    res.on('finish', async () => {
+    res.on("finish", async () => {
       await rm(inputAudioPath, { force: true }).catch(() => {});
       for (const dir of tempDirs) {
         await rm(dir, { recursive: true, force: true }).catch(() => {});
