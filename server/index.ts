@@ -25,7 +25,7 @@ const app = express();
 
 app.use(express.json({ limit: '50mb' }));
 
-const upload = multer({ dest: join(tmpdir(), 'open-lyrics-uploads') });
+const upload = multer({ dest: join(tmpdir(), 'open-karaoke-uploads') });
 
 // Check venv and demucs availability on startup
 access(VENV_PYTHON)
@@ -235,5 +235,5 @@ app.post('/api/export-video', upload.single('audio'), async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Open Lyrics server running on http://localhost:${PORT}`);
+  console.log(`Open Karaoke server running on http://localhost:${PORT}`);
 });

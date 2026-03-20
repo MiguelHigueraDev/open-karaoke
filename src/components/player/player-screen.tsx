@@ -102,7 +102,7 @@ export function PlayerScreen() {
     <div className="flex flex-col h-screen max-w-[900px] mx-auto px-6">
       <header className="flex items-center justify-between py-5 pb-4 border-b border-border">
         <h1 className="text-xl font-bold tracking-tight text-text-primary">
-          Karaoke Player
+          Player
         </h1>
         <button
           className="px-4 py-2 text-xs border border-border rounded-lg bg-bg-surface text-text-primary cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent"

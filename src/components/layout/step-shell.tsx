@@ -20,7 +20,7 @@ export function StepShell({ children, nextLabel, onNext }: Props) {
     <div className="flex flex-col h-screen max-w-[900px] mx-auto px-6">
       <header className="py-5 pb-4 border-b border-border">
         <h1 className="text-xl font-bold tracking-tight mb-4 text-text-primary">
-          Open Lyrics
+          Open Karaoke
         </h1>
         <StepIndicator currentStep={state.step} />
       </header>

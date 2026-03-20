@@ -4,13 +4,13 @@ const MODES = [
   {
     mode: 'creator' as const,
     icon: '🎤',
-    title: 'Lyrics Creator',
+    title: 'Creator',
     desc: 'Sync lyrics to audio with line and word-level precision. Export as JSON.',
   },
   {
     mode: 'player' as const,
     icon: '🎶',
-    title: 'Karaoke Player',
+    title: 'Player',
     desc: 'Load synced lyrics JSON and an audio file to play karaoke.',
   },
 ];
@@ -21,7 +21,7 @@ export function HomeScreen() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-6">
       <h1 className="text-3xl font-bold tracking-tight text-text-primary mb-2">
-        Open Lyrics
+        Open Karaoke
       </h1>
       <p className="text-sm text-text-muted mb-10">
         Create or play synced lyrics
