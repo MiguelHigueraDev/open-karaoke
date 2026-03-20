@@ -3,6 +3,7 @@ import { useAppState, useDispatch } from "../../state/lyrics-context";
 import { useAudio } from "../../hooks/use-audio";
 import { KaraokeRenderer } from "../preview/karaoke-renderer";
 import { PlaybackControls } from "../shared/playback-controls";
+import { VideoExportPanel } from "../export/video-export-panel";
 import type { SyncedLyrics, SyncMode } from "../../types/lyrics";
 
 const AUDIO_ACCEPT = [
@@ -244,6 +245,14 @@ export function PlayerScreen() {
                   />
                 }
               />
+
+              <div className="mt-4 border-t border-border pt-4">
+                <VideoExportPanel
+                  lyrics={lyrics}
+                  syncMode={syncMode}
+                  audioUrl={audioUrl}
+                />
+              </div>
             </>
           ) : (
             <div className="flex items-center justify-center min-h-[300px] bg-bg-surface rounded-lg text-text-dim text-sm">
