@@ -6,7 +6,7 @@ import { createReadStream } from "fs";
 import { join, dirname } from "path";
 import { tmpdir } from "os";
 import { fileURLToPath } from "url";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import {
   drawFrame,
   VIDEO_WIDTH,
@@ -19,6 +19,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, "..");
 const VENV_DIR = join(PROJECT_ROOT, ".venv");
 const VENV_PYTHON = join(VENV_DIR, "bin", "python3");
+
+// Register Inter font for server-side canvas rendering
+GlobalFonts.registerFromPath(join(__dirname, "fonts", "Inter-Regular.ttf"), "Inter");
+GlobalFonts.registerFromPath(join(__dirname, "fonts", "Inter-Bold.ttf"), "Inter");
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const app = express();
