@@ -84,11 +84,17 @@ async function runDemucs(inputPath: string): Promise<string> {
         "vocals",
         "-n",
         "htdemucs",
+        "--shifts",
+        "0",
+        "--segment",
+        "7",
+        "-j",
+        "4",
         "-o",
         outputDir,
         inputPath,
       ],
-      { timeout: 600_000 },
+      { timeout: 600_000, maxBuffer: 50 * 1024 * 1024, env: { ...process.env, PYTHONWARNINGS: "ignore::UserWarning" } },
       (err) => {
         if (err) reject(err);
         else resolve();
