@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { execFile, spawn } from "child_process";
-import { mkdtemp, rm, readdir, access } from "fs/promises";
+import { mkdtemp, rm, readdir, access, stat } from "fs/promises";
 import { createReadStream } from "fs";
 import { join, dirname } from "path";
 import { tmpdir } from "os";
@@ -231,6 +231,10 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
     });
 
     // Render frames and pipe to ffmpeg
+    console.log(`Encoding video: ${totalFrames} frames, ${duration.toFixed(1)}s audio`);
+    const encodeStart = Date.now();
+    let lastLog = encodeStart;
+
     for (let frame = 0; frame < totalFrames; frame++) {
       const currentTime = frame / FPS;
       drawFrame(ctx, lyrics, syncMode, currentTime);
@@ -243,13 +247,25 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
           ffmpeg.stdin.once("drain", resolve),
         );
       }
+
+      const now = Date.now();
+      if (now - lastLog >= 5000) {
+        const pct = ((frame / totalFrames) * 100).toFixed(0);
+        const elapsed = ((now - encodeStart) / 1000).toFixed(1);
+        const fps = (frame / ((now - encodeStart) / 1000)).toFixed(1);
+        console.log(`Encoding: ${pct}% (${frame}/${totalFrames} frames, ${fps} fps, ${elapsed}s elapsed)`);
+        lastLog = now;
+      }
     }
 
     ffmpeg.stdin.end();
     await ffmpegDone;
+    console.log(`Encoding complete in ${((Date.now() - encodeStart) / 1000).toFixed(1)}s`);
 
     // Stream the result
+    const { size } = await stat(outputPath);
     res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Length", size);
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${(lyrics.metadata.title || "karaoke").replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4"`,
@@ -257,9 +273,12 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
 
     const stream = createReadStream(outputPath);
     stream.pipe(res);
-    stream.on("error", () => {
+    stream.on("error", (err) => {
+      console.error("Stream error:", err);
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to read output file" });
+      } else {
+        res.destroy();
       }
     });
   } catch (err) {
