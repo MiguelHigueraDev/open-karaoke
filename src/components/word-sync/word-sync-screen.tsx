@@ -121,7 +121,7 @@ export function WordSyncScreen() {
         </div>
 
         {/* Instructions */}
-        <div className="flex justify-between items-center px-4 py-3 bg-bg-surface rounded-lg text-sm text-text-muted">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-4 py-3 bg-bg-surface rounded-lg text-sm text-text-muted">
           <p>
             Press{' '}
             <kbd className="inline-block px-2 py-0.5 text-xs font-mono bg-bg-elevated border border-border rounded text-accent-glow">

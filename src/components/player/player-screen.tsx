@@ -99,8 +99,8 @@ export function PlayerScreen() {
   );
 
   return (
-    <div className="flex flex-col h-screen max-w-[900px] mx-auto px-6">
-      <header className="flex items-center justify-between py-5 pb-4 border-b border-border">
+    <div className="flex flex-col h-screen max-w-[1400px] mx-auto px-4 md:px-8">
+      <header className="flex items-center justify-between py-4 pb-3 border-b border-border">
         <h1 className="text-xl font-bold tracking-tight text-text-primary">
           Player
         </h1>
@@ -115,7 +115,7 @@ export function PlayerScreen() {
       <main className="flex-1 overflow-y-auto py-6">
         <div className="flex flex-col gap-5">
           {/* Upload row */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             {/* JSON upload */}
             <div
               className={`flex-1 flex items-center justify-center min-h-[100px] border-2 border-dashed rounded-lg cursor-pointer transition-all bg-bg-surface ${

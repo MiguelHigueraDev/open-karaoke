@@ -27,27 +27,34 @@ export function ExportScreen() {
 
   return (
     <StepShell>
-      <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold text-text-primary">
-          Synced Lyrics JSON
-        </h2>
-        <div className="flex gap-3">
-          <button
-            className="px-5 py-2.5 border border-accent rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer transition-all hover:bg-accent-glow hover:border-accent-glow"
-            onClick={handleCopy}
-          >
-            {copied ? 'Copied!' : 'Copy to Clipboard'}
-          </button>
-          <button
-            className="px-5 py-2.5 border border-border rounded-lg bg-transparent text-text-primary text-sm cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent"
-            onClick={handleDownload}
-          >
-            Download .json
-          </button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: JSON export */}
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-text-primary">
+            Synced Lyrics JSON
+          </h2>
+          <div className="flex gap-3">
+            <button
+              className="px-5 py-2.5 border border-accent rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer transition-all hover:bg-accent-glow hover:border-accent-glow"
+              onClick={handleCopy}
+            >
+              {copied ? 'Copied!' : 'Copy to Clipboard'}
+            </button>
+            <button
+              className="px-5 py-2.5 border border-border rounded-lg bg-transparent text-text-primary text-sm cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent"
+              onClick={handleDownload}
+            >
+              Download .json
+            </button>
+          </div>
+          <pre className="bg-bg-surface border border-border rounded-lg p-5 font-mono text-xs leading-relaxed text-text-muted overflow-auto max-h-[500px] lg:max-h-[60vh]">
+            {json}
+          </pre>
         </div>
 
+        {/* Right: Video export */}
         {audioUrl && (
-          <div className="mt-2">
+          <div>
             <VideoExportPanel
               lyrics={lyrics}
               syncMode={syncMode}
@@ -55,10 +62,6 @@ export function ExportScreen() {
             />
           </div>
         )}
-
-        <pre className="bg-bg-surface border border-border rounded-lg p-5 font-mono text-xs leading-relaxed text-text-muted overflow-auto max-h-[500px]">
-          {json}
-        </pre>
       </div>
     </StepShell>
   );

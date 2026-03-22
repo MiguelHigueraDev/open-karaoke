@@ -17,9 +17,9 @@ export function StepShell({ children, nextLabel, onNext }: Props) {
   const canGoNext = next && canAdvance(state.step, state.lyrics, state.syncMode);
 
   return (
-    <div className="flex flex-col h-screen max-w-[900px] mx-auto px-6">
-      <header className="py-5 pb-4 border-b border-border">
-        <h1 className="text-xl font-bold tracking-tight mb-4 text-text-primary">
+    <div className="flex flex-col h-screen max-w-[1400px] mx-auto px-4 md:px-8">
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between py-4 pb-3 border-b border-border gap-3">
+        <h1 className="text-xl font-bold tracking-tight text-text-primary">
           Open Karaoke
         </h1>
         <StepIndicator currentStep={state.step} />

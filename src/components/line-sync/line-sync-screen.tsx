@@ -73,7 +73,7 @@ export function LineSyncScreen() {
           playbackRate={playbackRate}
         />
 
-        <div className="flex justify-between items-center px-4 py-3 bg-bg-surface rounded-lg text-sm text-text-muted">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-4 py-3 bg-bg-surface rounded-lg text-sm text-text-muted">
           <p>
             <kbd className="inline-block px-2 py-0.5 text-xs font-mono bg-bg-elevated border border-border rounded text-accent-glow">
               Space
@@ -106,7 +106,7 @@ export function LineSyncScreen() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-0.5 max-h-[400px] overflow-y-auto">
+        <div className="flex flex-col gap-0.5 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto">
           {lyrics.lines.map((line, i) => {
             const isSynced = line.startTime !== null;
             const isActive = i === nextUnsyncedIdx;

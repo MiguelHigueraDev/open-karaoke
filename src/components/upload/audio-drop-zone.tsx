@@ -36,7 +36,7 @@ export function AudioDropZone() {
 
   return (
     <div
-      className={`flex items-center justify-center min-h-[120px] border-2 border-dashed rounded-lg cursor-pointer transition-all bg-bg-surface ${
+      className={`flex items-center justify-center min-h-[120px] h-full border-2 border-dashed rounded-lg cursor-pointer transition-all bg-bg-surface ${
         dragOver
           ? 'border-accent bg-accent/5'
           : audioFile

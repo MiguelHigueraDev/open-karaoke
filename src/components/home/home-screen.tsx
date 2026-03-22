@@ -19,27 +19,27 @@ export function HomeScreen() {
   const dispatch = useDispatch();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6">
-      <h1 className="text-3xl font-bold tracking-tight text-text-primary mb-2">
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 md:px-6">
+      <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-text-primary mb-2">
         Open Karaoke
       </h1>
-      <p className="text-sm text-text-muted mb-10">
+      <p className="text-sm md:text-base text-text-muted mb-10">
         Create or play synced lyrics
       </p>
-      <div className="flex gap-5 w-full max-w-[600px]">
+      <div className="flex flex-col sm:flex-row gap-5 w-full max-w-[700px]">
         {MODES.map((m) => (
           <button
             key={m.mode}
-            className="flex-1 flex flex-col items-center gap-3 p-8 border border-border rounded-xl bg-bg-surface cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent group"
+            className="flex-1 flex flex-col items-center gap-3 p-8 md:p-10 border border-border rounded-xl bg-bg-surface cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent group"
             onClick={() =>
               dispatch({ type: 'SET_APP_MODE', mode: m.mode })
             }
           >
-            <span className="text-4xl">{m.icon}</span>
-            <span className="text-base font-semibold text-text-primary group-hover:text-accent">
+            <span className="text-4xl md:text-5xl">{m.icon}</span>
+            <span className="text-base md:text-lg font-semibold text-text-primary group-hover:text-accent">
               {m.title}
             </span>
-            <span className="text-xs text-text-dim text-center leading-relaxed">
+            <span className="text-xs md:text-sm text-text-dim text-center leading-relaxed">
               {m.desc}
             </span>
           </button>
