@@ -1,17 +1,17 @@
-import { useDispatch } from '../../state/lyrics-context';
+import { useDispatch } from "../../state/lyrics-context";
 
 const MODES = [
   {
-    mode: 'creator' as const,
-    icon: '🎤',
-    title: 'Creator',
-    desc: 'Sync lyrics to audio with line and word-level precision. Export as JSON.',
+    mode: "creator" as const,
+    icon: "🎤",
+    title: "Creator",
+    desc: "Sync lyrics to audio with line and word-level precision. Export as video or JSON.",
   },
   {
-    mode: 'player' as const,
-    icon: '🎶',
-    title: 'Player',
-    desc: 'Load synced lyrics JSON and an audio file to play karaoke.',
+    mode: "player" as const,
+    icon: "🎶",
+    title: "Player",
+    desc: "Load synced lyrics JSON and an audio file to play karaoke.",
   },
 ];
 
@@ -31,9 +31,7 @@ export function HomeScreen() {
           <button
             key={m.mode}
             className="flex-1 flex flex-col items-center gap-3 p-8 md:p-10 border border-border rounded-xl bg-bg-surface cursor-pointer transition-all hover:bg-bg-elevated hover:border-accent group"
-            onClick={() =>
-              dispatch({ type: 'SET_APP_MODE', mode: m.mode })
-            }
+            onClick={() => dispatch({ type: "SET_APP_MODE", mode: m.mode })}
           >
             <span className="text-4xl md:text-5xl">{m.icon}</span>
             <span className="text-base md:text-lg font-semibold text-text-primary group-hover:text-accent">

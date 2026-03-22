@@ -15,6 +15,7 @@ import {
   FPS,
   type DrawLyrics,
 } from "../shared/draw-frame.js";
+import { MAX_DURATION_S } from "../shared/constants.js";
 
 // ---------------------------------------------------------------------------
 // Job progress tracking
@@ -303,6 +304,14 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
         },
       );
     });
+
+    if (duration > MAX_DURATION_S) {
+      job.stage = "error";
+      job.progress = 0;
+      job.message = `Audio exceeds the ${MAX_DURATION_S / 60}-minute limit (${Math.round(duration)}s)`;
+      scheduleJobCleanup(jobId);
+      return;
+    }
 
     const totalFrames = Math.ceil(duration * FPS);
 
