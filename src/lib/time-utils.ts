@@ -1,7 +1,8 @@
-export function formatTime(seconds: number | null): string {
-  if (seconds === null) return '--:--.---';
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+export function formatTime(ms: number | null): string {
+  if (ms === null) return '--:--.---';
+  const totalSeconds = ms / 1000;
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toFixed(3).padStart(6, '0')}`;
 }
 

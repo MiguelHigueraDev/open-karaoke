@@ -15,7 +15,7 @@ import {
   FPS,
   type DrawLyrics,
 } from "../shared/draw-frame.js";
-import { MAX_DURATION_S } from "../shared/constants.js";
+import { MAX_DURATION_MS } from "../shared/constants.js";
 
 // ---------------------------------------------------------------------------
 // Job progress tracking
@@ -305,10 +305,12 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
       );
     });
 
-    if (duration > MAX_DURATION_S) {
+    const durationMs = duration * 1000;
+
+    if (durationMs > MAX_DURATION_MS) {
       job.stage = "error";
       job.progress = 0;
-      job.message = `Audio exceeds the ${MAX_DURATION_S / 60}-minute limit (${Math.round(duration)}s)`;
+      job.message = `Audio exceeds the ${MAX_DURATION_MS / 60_000}-minute limit (${Math.round(duration)}s)`;
       scheduleJobCleanup(jobId);
       return;
     }
@@ -385,8 +387,8 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
     let lastLog = encodeStart;
 
     for (let frame = 0; frame < totalFrames; frame++) {
-      const currentTime = frame / FPS;
-      drawFrame(ctx, lyrics, syncMode, currentTime);
+      const currentTimeMs = (frame / FPS) * 1000;
+      drawFrame(ctx, lyrics, syncMode, currentTimeMs);
 
       const buffer = canvas.data();
       const canWrite = ffmpeg.stdin.write(buffer);

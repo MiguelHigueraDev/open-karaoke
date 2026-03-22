@@ -41,7 +41,7 @@ export function PlaybackControls({
         type="range"
         min={0}
         max={duration || 1}
-        step={0.01}
+        step={1}
         value={currentTime}
         onChange={(e) => onSeek(Number(e.target.value))}
         disabled={!isReady}

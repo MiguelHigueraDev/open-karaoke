@@ -16,7 +16,9 @@ export function useAudio({
 }: UseAudioOptions) {
   const wsRef = useRef<WaveSurfer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  /** Current playback time in milliseconds. */
   const [currentTime, setCurrentTime] = useState(0);
+  /** Total duration in milliseconds. */
   const [duration, setDuration] = useState(0);
   const [isReady, setIsReady] = useState(false);
 
@@ -37,12 +39,12 @@ export function useAudio({
     });
 
     ws.on('ready', () => {
-      setDuration(ws.getDuration());
+      setDuration(ws.getDuration() * 1000);
       setIsReady(true);
     });
 
     ws.on('timeupdate', (time) => {
-      setCurrentTime(time);
+      setCurrentTime(time * 1000);
     });
 
     ws.on('play', () => setIsPlaying(true));
@@ -63,15 +65,17 @@ export function useAudio({
   const pause = useCallback(() => wsRef.current?.pause(), []);
   const togglePlay = useCallback(() => wsRef.current?.playPause(), []);
 
-  const seekTo = useCallback((time: number) => {
+  /** Seek to a position in milliseconds. */
+  const seekTo = useCallback((ms: number) => {
     const ws = wsRef.current;
     if (!ws) return;
-    const dur = ws.getDuration();
-    if (dur > 0) ws.seekTo(time / dur);
+    const dur = ws.getDuration(); // seconds
+    if (dur > 0) ws.seekTo((ms / 1000) / dur);
   }, []);
 
+  /** Returns current playback time in milliseconds. */
   const getCurrentTime = useCallback(
-    () => wsRef.current?.getCurrentTime() ?? 0,
+    () => (wsRef.current?.getCurrentTime() ?? 0) * 1000,
     [],
   );
 

@@ -1,5 +1,6 @@
 // Shared frame-drawing logic used by both browser preview and server-side export.
 // Uses only standard Canvas 2D API — compatible with both DOM canvas and node-canvas.
+// All time values (currentTime, startTime, endTime) are in milliseconds.
 
 export interface DrawLyrics {
   metadata: { title: string; artist: string };
@@ -8,14 +9,18 @@ export interface DrawLyrics {
 
 export interface DrawLine {
   isInstrumental: boolean;
+  /** Milliseconds */
   startTime: number | null;
+  /** Milliseconds */
   endTime: number | null;
   words: DrawWord[];
 }
 
 export interface DrawWord {
   text: string;
+  /** Milliseconds */
   startTime: number | null;
+  /** Milliseconds */
   endTime: number | null;
 }
 
@@ -50,8 +55,10 @@ type SyncMode = 'line' | 'word';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Ctx = any;
 
-// Smooth camera transition duration in seconds
-const CAMERA_TRANSITION_DURATION = 0.5;
+// Smooth camera transition duration in milliseconds
+const CAMERA_TRANSITION_MS = 500;
+// Fade transition duration in milliseconds
+const FADE_MS = 300;
 // How many lines above/below active to show (matches React component)
 const VISIBLE_RANGE = 2;
 
@@ -99,8 +106,8 @@ export function drawFrame(
   if (activeLineIdx >= 0 && activeLineIdx > 0) {
     const lineStart = lines[activeLineIdx].startTime ?? 0;
     const elapsed = currentTime - lineStart;
-    if (elapsed < CAMERA_TRANSITION_DURATION) {
-      const t = elapsed / CAMERA_TRANSITION_DURATION;
+    if (elapsed < CAMERA_TRANSITION_MS) {
+      const t = elapsed / CAMERA_TRANSITION_MS;
       const eased = 1 - (1 - t) ** 3; // cubic ease-out
       const prevCameraY = (activeLineIdx - 1) * lineHeight;
       cameraY = prevCameraY + (targetCameraY - prevCameraY) * eased;
@@ -146,16 +153,16 @@ export function drawFrame(
     // Smooth transition when becoming/leaving active state
     if (!isActive && line.endTime !== null && currentTime >= line.endTime!) {
       const fadeElapsed = currentTime - line.endTime!;
-      if (fadeElapsed < 0.3) {
-        const t = fadeElapsed / 0.3;
+      if (fadeElapsed < FADE_MS) {
+        const t = fadeElapsed / FADE_MS;
         const eased = 1 - (1 - t) ** 2;
         lineOpacity = 1.0 + (lineOpacity - 1.0) * eased;
       }
     }
     if (!isActive && line.startTime !== null && currentTime < line.startTime!) {
       const untilActive = line.startTime! - currentTime;
-      if (untilActive < 0.3) {
-        const t = 1 - untilActive / 0.3;
+      if (untilActive < FADE_MS) {
+        const t = 1 - untilActive / FADE_MS;
         const eased = t * t;
         lineOpacity = lineOpacity + (1.0 - lineOpacity) * eased;
       }

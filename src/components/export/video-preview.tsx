@@ -14,7 +14,9 @@ export function VideoPreview({ lyrics, syncMode, audioUrl }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  /** Current time in ms. */
   const [currentTime, setCurrentTime] = useState(0);
+  /** Duration in ms. */
   const [duration, setDuration] = useState(0);
 
   // Create audio element
@@ -23,7 +25,7 @@ export function VideoPreview({ lyrics, syncMode, audioUrl }: Props) {
     audioRef.current = audio;
 
     audio.addEventListener('loadedmetadata', () => {
-      setDuration(audio.duration);
+      setDuration(audio.duration * 1000);
     });
     audio.addEventListener('play', () => setIsPlaying(true));
     audio.addEventListener('pause', () => setIsPlaying(false));
@@ -43,9 +45,9 @@ export function VideoPreview({ lyrics, syncMode, audioUrl }: Props) {
     const ctx = canvas.getContext('2d')!;
 
     function render() {
-      const time = audioRef.current?.currentTime ?? 0;
-      setCurrentTime(time);
-      drawFrame(ctx, lyrics, syncMode, time);
+      const timeMs = (audioRef.current?.currentTime ?? 0) * 1000;
+      setCurrentTime(timeMs);
+      drawFrame(ctx, lyrics, syncMode, timeMs);
       rafRef.current = requestAnimationFrame(render);
     }
 
@@ -65,7 +67,7 @@ export function VideoPreview({ lyrics, syncMode, audioUrl }: Props) {
     if (!audio || !duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * duration;
+    audio.currentTime = (ratio * duration) / 1000;
   }, [duration]);
 
   return (

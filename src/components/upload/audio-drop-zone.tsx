@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useDispatch, useAppState } from '../../state/lyrics-context';
-import { MAX_DURATION_S } from '../../../shared/constants';
+import { MAX_DURATION_MS } from '../../../shared/constants';
 
 const ACCEPTED = [
   'audio/mpeg',
@@ -29,12 +29,13 @@ export function AudioDropZone() {
       const url = URL.createObjectURL(file);
       const audio = new Audio(url);
       audio.addEventListener('loadedmetadata', () => {
-        if (audio.duration > MAX_DURATION_S) {
+        const durationMs = audio.duration * 1000;
+        if (durationMs > MAX_DURATION_MS) {
           URL.revokeObjectURL(url);
-          alert(`Song exceeds the ${MAX_DURATION_S / 60}-minute limit`);
+          alert(`Song exceeds the ${MAX_DURATION_MS / 60_000}-minute limit`);
           return;
         }
-        dispatch({ type: 'SET_AUDIO', file, url, duration: audio.duration });
+        dispatch({ type: 'SET_AUDIO', file, url, duration: durationMs });
       });
     },
     [dispatch],

@@ -5,7 +5,7 @@ import { KaraokeRenderer } from "../preview/karaoke-renderer";
 import { PlaybackControls } from "../shared/playback-controls";
 import { VideoExportPanel } from "../export/video-export-panel";
 import type { SyncedLyrics, SyncMode } from "../../types/lyrics";
-import { MAX_DURATION_S } from "../../../shared/constants";
+import { MAX_DURATION_MS } from "../../../shared/constants";
 
 const AUDIO_ACCEPT = [
   "audio/mpeg",
@@ -43,12 +43,13 @@ export function PlayerScreen() {
       const url = URL.createObjectURL(file);
       const el = new Audio(url);
       el.addEventListener("loadedmetadata", () => {
-        if (el.duration > MAX_DURATION_S) {
+        const durationMs = el.duration * 1000;
+        if (durationMs > MAX_DURATION_MS) {
           URL.revokeObjectURL(url);
-          alert(`Song exceeds the ${MAX_DURATION_S / 60}-minute limit`);
+          alert(`Song exceeds the ${MAX_DURATION_MS / 60_000}-minute limit`);
           return;
         }
-        dispatch({ type: "SET_AUDIO", file, url, duration: el.duration });
+        dispatch({ type: "SET_AUDIO", file, url, duration: durationMs });
       });
     },
     [dispatch],

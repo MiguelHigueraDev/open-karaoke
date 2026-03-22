@@ -20,7 +20,8 @@ export function exportToJson(lyrics: SyncedLyrics, syncMode: SyncMode): string {
   return JSON.stringify(output, null, 2);
 }
 
+/** Round ms to nearest integer. */
 function round(val: number | null): number | null {
   if (val === null) return null;
-  return Math.round(val * 1000) / 1000;
+  return Math.round(val);
 }
