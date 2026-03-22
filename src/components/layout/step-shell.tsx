@@ -25,7 +25,7 @@ export function StepShell({ children, nextLabel, onNext }: Props) {
         <StepIndicator currentStep={state.step} />
       </header>
 
-      <main className="flex-1 overflow-y-auto py-6">{children}</main>
+      <main className="flex-1 overflow-y-auto py-8">{children}</main>
 
       <footer className="flex justify-between items-center py-4 border-t border-border">
         {prev ? (

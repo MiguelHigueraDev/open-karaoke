@@ -43,6 +43,10 @@ export function HomeScreen() {
           </button>
         ))}
       </div>
+      <p className="mt-10 max-w-[700px] text-center text-[11px] leading-relaxed text-text-dim">
+        Only upload content you have the rights to use. Uploaded media is
+        processed on our server but is not stored permanently.
+      </p>
     </div>
   );
 }

@@ -15,7 +15,7 @@ export function UploadScreen() {
 
   return (
     <StepShell nextLabel="Start Line Sync">
-      <div className="flex flex-col gap-7">
+      <div className="flex flex-col gap-10">
         {/* Audio + Lyrics side-by-side on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
@@ -100,6 +100,10 @@ export function UploadScreen() {
           </div>
         </div>
       </div>
+      <p className="text-[11px] leading-relaxed text-text-dim text-center mt-6">
+        Only upload content you have the rights to use. Uploaded media is
+        processed on our server but is not stored permanently.
+      </p>
     </StepShell>
   );
 }
