@@ -14,6 +14,29 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 }
 
+/* Thin dark scrollbar that matches the theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-bg-elevated) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-bg-elevated);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border);
+}
+
 /* Karaoke word gradient wipe — needs custom CSS for background-clip: text */
 .karaoke-word {
   background: linear-gradient(

@@ -6,6 +6,7 @@ import { createReadStream } from "fs";
 import { join, dirname } from "path";
 import { tmpdir } from "os";
 import { fileURLToPath } from "url";
+import { randomUUID } from "crypto";
 import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import {
   drawFrame,
@@ -14,6 +15,38 @@ import {
   FPS,
   type DrawLyrics,
 } from "../shared/draw-frame.js";
+
+// ---------------------------------------------------------------------------
+// Job progress tracking
+// ---------------------------------------------------------------------------
+interface JobProgress {
+  stage: "uploading" | "vocal-removal" | "encoding" | "done" | "error";
+  progress: number; // 0-100
+  message: string;
+  outputPath?: string;
+  tempDirs: string[];
+  inputAudioPath?: string;
+  filename: string;
+  fileSize?: number;
+}
+
+const jobs = new Map<string, JobProgress>();
+
+// Clean up completed jobs after 10 minutes
+function scheduleJobCleanup(jobId: string) {
+  setTimeout(async () => {
+    const job = jobs.get(jobId);
+    if (job) {
+      if (job.inputAudioPath) {
+        await rm(job.inputAudioPath, { force: true }).catch(() => {});
+      }
+      for (const dir of job.tempDirs) {
+        await rm(dir, { recursive: true, force: true }).catch(() => {});
+      }
+      jobs.delete(jobId);
+    }
+  }, 10 * 60 * 1000);
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, "..");
@@ -75,11 +108,14 @@ execFile("ffmpeg", ["-version"], (err) => {
 // ---------------------------------------------------------------------------
 // Demucs vocal separation
 // ---------------------------------------------------------------------------
-async function runDemucs(inputPath: string): Promise<string> {
+async function runDemucs(
+  inputPath: string,
+  onProgress?: (pct: number) => void,
+): Promise<string> {
   const outputDir = await mkdtemp(join(tmpdir(), "demucs-out-"));
 
   await new Promise<void>((resolve, reject) => {
-    const proc = execFile(
+    const proc = spawn(
       VENV_PYTHON,
       [
         "-m",
@@ -98,13 +134,27 @@ async function runDemucs(inputPath: string): Promise<string> {
         outputDir,
         inputPath,
       ],
-      { timeout: 600_000, maxBuffer: 50 * 1024 * 1024, env: { ...process.env, PYTHONWARNINGS: "ignore::UserWarning" } },
-      (err) => {
-        if (err) reject(err);
-        else resolve();
+      {
+        timeout: 600_000,
+        env: { ...process.env, PYTHONWARNINGS: "ignore::UserWarning" },
       },
     );
-    proc.stderr?.on("data", (data: Buffer) => process.stderr.write(data));
+
+    proc.stderr?.on("data", (data: Buffer) => {
+      const text = data.toString();
+      process.stderr.write(data);
+      // Demucs outputs progress like "  1%|..." or " 95%|..."
+      const match = text.match(/(\d+)%\|/);
+      if (match && onProgress) {
+        onProgress(parseInt(match[1], 10));
+      }
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`demucs exited with code ${code}`));
+    });
+    proc.on("error", reject);
   });
 
   const modelDir = join(outputDir, "htdemucs");
@@ -117,6 +167,68 @@ async function runDemucs(inputPath: string): Promise<string> {
 // POST /api/export-video
 // Accepts: multipart with "audio" file + "lyrics" JSON string + "syncMode" + "removeVocals"
 // Returns: mp4 video file
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// GET /api/export-progress/:jobId
+// Returns current progress for a running export job
+// ---------------------------------------------------------------------------
+app.get("/api/export-progress/:jobId", (req, res) => {
+  const job = jobs.get(req.params.jobId);
+  if (!job) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+  res.json({
+    stage: job.stage,
+    progress: job.progress,
+    message: job.message,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/export-download/:jobId
+// Downloads the completed video file
+// ---------------------------------------------------------------------------
+app.get("/api/export-download/:jobId", async (req, res) => {
+  const job = jobs.get(req.params.jobId);
+  if (!job) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+  if (job.stage !== "done" || !job.outputPath) {
+    res.status(400).json({ error: "Job not ready for download" });
+    return;
+  }
+
+  try {
+    const { size } = await stat(job.outputPath);
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Length", size);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${job.filename}"`,
+    );
+
+    const stream = createReadStream(job.outputPath);
+    stream.pipe(res);
+    stream.on("error", (err) => {
+      console.error("Stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to read output file" });
+      } else {
+        res.destroy();
+      }
+    });
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).json({ error: "File not available" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/export-video
+// Accepts: multipart with "audio" file + "lyrics" JSON string + "syncMode" + "removeVocals"
+// Returns: { jobId } immediately, then processes in background
 // ---------------------------------------------------------------------------
 app.post("/api/export-video", upload.single("audio"), async (req, res) => {
   if (!req.file) {
@@ -137,17 +249,39 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
     return;
   }
 
+  const jobId = randomUUID();
+  const filename = `${(lyrics.metadata.title || "karaoke").replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4`;
+
+  jobs.set(jobId, {
+    stage: removeVocals ? "vocal-removal" : "encoding",
+    progress: 0,
+    message: removeVocals ? "Starting vocal removal..." : "Starting encoding...",
+    tempDirs: [],
+    inputAudioPath: req.file.path,
+    filename,
+  });
+
+  // Return jobId immediately
+  res.json({ jobId });
+
+  // Process in background
+  const job = jobs.get(jobId)!;
   const inputAudioPath = req.file.path;
-  const tempDirs: string[] = [];
   let audioPath = inputAudioPath;
 
   try {
     // Optional vocal removal
     if (removeVocals) {
-      const instrumentalPath = await runDemucs(inputAudioPath);
+      job.stage = "vocal-removal";
+      job.progress = 0;
+      job.message = "Removing vocals...";
+
+      const instrumentalPath = await runDemucs(inputAudioPath, (pct) => {
+        job.progress = pct;
+        job.message = `Removing vocals... ${pct}%`;
+      });
       audioPath = instrumentalPath;
-      // Track parent dir for cleanup
-      tempDirs.push(dirname(dirname(dirname(instrumentalPath))));
+      job.tempDirs.push(dirname(dirname(dirname(instrumentalPath))));
     }
 
     // Get audio duration via ffprobe
@@ -172,18 +306,22 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
 
     const totalFrames = Math.ceil(duration * FPS);
 
+    // Update to encoding stage
+    job.stage = "encoding";
+    job.progress = 0;
+    job.message = "Starting encoding...";
+
     // Set up canvas
     const canvas = createCanvas(VIDEO_WIDTH, VIDEO_HEIGHT);
     const ctx = canvas.getContext("2d");
 
     // Spawn ffmpeg: pipe raw RGBA frames in, output mp4 with audio
     const outputDir = await mkdtemp(join(tmpdir(), "export-video-"));
-    tempDirs.push(outputDir);
+    job.tempDirs.push(outputDir);
     const outputPath = join(outputDir, "output.mp4");
 
     const ffmpeg = spawn("ffmpeg", [
       "-y",
-      // Video input: raw frames from stdin
       "-f",
       "rawvideo",
       "-pix_fmt",
@@ -194,10 +332,8 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
       String(FPS),
       "-i",
       "pipe:0",
-      // Audio input
       "-i",
       audioPath,
-      // Encoding settings
       "-c:v",
       "libx264",
       "-preset",
@@ -243,7 +379,6 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
       const currentTime = frame / FPS;
       drawFrame(ctx, lyrics, syncMode, currentTime);
 
-      // @napi-rs/canvas .data() returns raw RGBA pixel data
       const buffer = canvas.data();
       const canWrite = ffmpeg.stdin.write(buffer);
       if (!canWrite) {
@@ -252,9 +387,13 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
         );
       }
 
+      // Update progress
+      const pct = Math.round((frame / totalFrames) * 100);
+      job.progress = pct;
+      job.message = `Encoding video... ${pct}%`;
+
       const now = Date.now();
       if (now - lastLog >= 5000) {
-        const pct = ((frame / totalFrames) * 100).toFixed(0);
         const elapsed = ((now - encodeStart) / 1000).toFixed(1);
         const fps = (frame / ((now - encodeStart) / 1000)).toFixed(1);
         console.log(`Encoding: ${pct}% (${frame}/${totalFrames} frames, ${fps} fps, ${elapsed}s elapsed)`);
@@ -266,38 +405,20 @@ app.post("/api/export-video", upload.single("audio"), async (req, res) => {
     await ffmpegDone;
     console.log(`Encoding complete in ${((Date.now() - encodeStart) / 1000).toFixed(1)}s`);
 
-    // Stream the result
-    const { size } = await stat(outputPath);
-    res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Content-Length", size);
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${(lyrics.metadata.title || "karaoke").replace(/[^a-zA-Z0-9_-]/g, "_")}.mp4"`,
-    );
+    job.stage = "done";
+    job.progress = 100;
+    job.message = "Export complete!";
+    job.outputPath = outputPath;
 
-    const stream = createReadStream(outputPath);
-    stream.pipe(res);
-    stream.on("error", (err) => {
-      console.error("Stream error:", err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to read output file" });
-      } else {
-        res.destroy();
-      }
-    });
+    scheduleJobCleanup(jobId);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Export failed";
     console.error("Export error:", message);
-    if (!res.headersSent) {
-      res.status(500).json({ error: message });
-    }
-  } finally {
-    res.on("finish", async () => {
-      await rm(inputAudioPath, { force: true }).catch(() => {});
-      for (const dir of tempDirs) {
-        await rm(dir, { recursive: true, force: true }).catch(() => {});
-      }
-    });
+    job.stage = "error";
+    job.progress = 0;
+    job.message = message;
+
+    scheduleJobCleanup(jobId);
   }
 });
 

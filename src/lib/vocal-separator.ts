@@ -1,30 +1,39 @@
 import type { SyncedLyrics, SyncMode } from "../types/lyrics";
 
-export type ExportStatus =
+export type ExportStage =
   | "idle"
   | "uploading"
-  | "processing"
+  | "vocal-removal"
+  | "encoding"
   | "done"
   | "error";
+
+export interface ExportProgress {
+  stage: ExportStage;
+  progress: number; // 0-100
+  message: string;
+}
 
 interface ExportOptions {
   lyrics: SyncedLyrics;
   syncMode: SyncMode;
   audioUrl: string;
   removeVocals?: boolean;
-  onStatus?: (status: ExportStatus) => void;
+  onProgress?: (progress: ExportProgress) => void;
   signal?: AbortSignal;
 }
+
+const POLL_INTERVAL = 2000;
 
 export async function exportVideoServer({
   lyrics,
   syncMode,
   audioUrl,
   removeVocals = false,
-  onStatus,
+  onProgress,
   signal,
 }: ExportOptions): Promise<Blob> {
-  onStatus?.("uploading");
+  onProgress?.({ stage: "uploading", progress: 0, message: "Uploading audio..." });
 
   // Fetch the audio blob from the blob/object URL
   const audioResponse = await fetch(audioUrl);
@@ -35,8 +44,6 @@ export async function exportVideoServer({
   formData.append("lyrics", JSON.stringify(lyrics));
   formData.append("syncMode", syncMode);
   formData.append("removeVocals", String(removeVocals));
-
-  onStatus?.("processing");
 
   const apiBase = import.meta.env.VITE_API_URL || "";
   const response = await fetch(`${apiBase}/api/export-video`, {
@@ -53,7 +60,63 @@ export async function exportVideoServer({
     );
   }
 
-  const blob = await response.blob();
-  onStatus?.("done");
+  const { jobId } = (await response.json()) as { jobId: string };
+
+  // Poll for progress
+  await new Promise<void>((resolve, reject) => {
+    const poll = async () => {
+      if (signal?.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+
+      try {
+        const progressRes = await fetch(
+          `${apiBase}/api/export-progress/${jobId}`,
+          { signal },
+        );
+        if (!progressRes.ok) {
+          reject(new Error("Failed to fetch progress"));
+          return;
+        }
+
+        const data = (await progressRes.json()) as ExportProgress;
+        onProgress?.(data);
+
+        if (data.stage === "done") {
+          resolve();
+          return;
+        }
+        if (data.stage === "error") {
+          reject(new Error(data.message || "Export failed"));
+          return;
+        }
+
+        setTimeout(poll, POLL_INTERVAL);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          reject(err);
+        } else {
+          // Network error during poll — retry
+          setTimeout(poll, POLL_INTERVAL);
+        }
+      }
+    };
+
+    poll();
+  });
+
+  // Download the finished file
+  onProgress?.({ stage: "done", progress: 100, message: "Downloading..." });
+
+  const downloadRes = await fetch(`${apiBase}/api/export-download/${jobId}`, {
+    signal,
+  });
+  if (!downloadRes.ok) {
+    throw new Error("Failed to download video");
+  }
+
+  const blob = await downloadRes.blob();
+  onProgress?.({ stage: "done", progress: 100, message: "Export complete!" });
   return blob;
 }
