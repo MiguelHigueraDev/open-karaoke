@@ -34,7 +34,7 @@ export function KaraokeRenderer({
 
   const exitFullscreen = useCallback(() => setFullscreen(false), []);
   const [showControls, setShowControls] = useState(true);
-  const idleTimer = useRef<ReturnType<typeof setTimeout>>(0);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const resetIdleTimer = useCallback(() => {
     setShowControls(true);
